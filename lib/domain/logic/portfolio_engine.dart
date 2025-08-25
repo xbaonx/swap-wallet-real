@@ -41,7 +41,7 @@ class PortfolioEngine {
   }
 
   TradeExecResult buyOrder(String base, double usdtIn, double askPrice) {
-    if (usdtIn <= 0 || _portfolio.usdt < usdtIn) {
+    if (usdtIn <= 0 || _portfolio.usdt < usdtIn - 0.01) {
       return TradeExecResult(
         ok: false,
         base: base,
@@ -83,7 +83,7 @@ class PortfolioEngine {
 
   TradeExecResult sellOrder(String base, double qtySell, double bidPrice) {
     final currentPosition = _portfolio.positions[base];
-    if (qtySell <= 0 || currentPosition == null || currentPosition.qty < qtySell) {
+    if (qtySell <= 0 || currentPosition == null || currentPosition.qty < qtySell - 1e-6) {
       return TradeExecResult(
         ok: false,
         base: base,

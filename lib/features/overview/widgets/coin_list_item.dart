@@ -5,6 +5,7 @@ import '../../../data/polling_service.dart';
 import '../../../domain/logic/portfolio_engine.dart';
 import '../../../domain/models/coin.dart';
 import '../../../domain/models/portfolio.dart';
+import '../../shared/coin_logo.dart';
 import 'sparkline.dart';
 import 'swap_inline_panel.dart';
 
@@ -44,14 +45,15 @@ class CoinListItem extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Top row: emoji + base, last price, %24h, volume
+                  // Top row: logo + base, last price, %24h, volume
                   Row(
                     children: [
-                      Text(
-                        coin.emoji,
-                        style: const TextStyle(fontSize: 24),
+                      CoinLogo(
+                        base: coin.base,
+                        size: 28,
+                        radius: 6,
+                        padding: const EdgeInsets.only(right: 12),
                       ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

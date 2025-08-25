@@ -33,7 +33,6 @@ class _SwapScreenState extends State<SwapScreen> {
   late Portfolio _portfolio;
   String _searchQuery = '';
   SortType _sortType = SortType.volume;
-  String? _expandedCoin;
 
   @override
   void initState() {
@@ -103,11 +102,6 @@ class _SwapScreenState extends State<SwapScreen> {
     });
   }
 
-  void _onCoinTap(String base) {
-    setState(() {
-      _expandedCoin = _expandedCoin == base ? null : base;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +131,6 @@ class _SwapScreenState extends State<SwapScreen> {
                     itemCount: _filteredCoins.length,
                     itemBuilder: (context, index) {
                       final coin = _filteredCoins[index];
-                      final isExpanded = _expandedCoin == coin.base;
                       final position = _portfolio.positions[coin.base];
                       
                       return TopCoinItem(
@@ -147,8 +140,8 @@ class _SwapScreenState extends State<SwapScreen> {
                         portfolioEngine: widget.portfolioEngine,
                         pollingService: widget.pollingService,
                         prefsStore: widget.prefsStore,
-                        isExpanded: isExpanded,
-                        onTap: () => _onCoinTap(coin.base),
+                        isExpanded: false,
+                        onTap: () {},
                       );
                     },
                   ),

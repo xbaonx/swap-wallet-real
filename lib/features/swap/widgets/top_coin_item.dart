@@ -8,7 +8,8 @@ import '../../../domain/models/portfolio.dart';
 import '../../../domain/models/position.dart';
 import '../../../storage/prefs_store.dart';
 import '../../overview/widgets/sparkline.dart';
-import 'swap_inline_panel.dart';
+import '../../shared/coin_logo.dart';
+import '../../trade/widgets/swap_sheet.dart';
 
 class TopCoinItem extends StatelessWidget {
   final Coin coin;
@@ -45,20 +46,30 @@ class TopCoinItem extends StatelessWidget {
       child: Column(
         children: [
           InkWell(
-            onTap: onTap,
+            onTap: () {
+              showSwapSheet(
+                context: context,
+                base: coin.base,
+                ask: coin.last,
+                usdtBalance: portfolio.usdt,
+                engine: portfolioEngine,
+                prefsStore: prefsStore,
+              );
+            },
             borderRadius: BorderRadius.circular(14),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Top row: emoji + base, last price, %24h, volume
+                  // Top row: logo + base, last price, %24h, volume
                   Row(
                     children: [
-                      Text(
-                        coin.emoji,
-                        style: const TextStyle(fontSize: 24),
+                      CoinLogo(
+                        base: coin.base,
+                        size: 28,
+                        radius: 6,
+                        padding: const EdgeInsets.only(right: 12),
                       ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,15 +178,6 @@ class TopCoinItem extends StatelessWidget {
               ),
             ),
           ),
-          
-          // Expanded swap panel
-          if (isExpanded)
-            SwapInlinePanel(
-              coin: coin,
-              portfolio: portfolio,
-              portfolioEngine: portfolioEngine,
-              prefsStore: prefsStore,
-            ),
         ],
       ),
     );

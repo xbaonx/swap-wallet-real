@@ -5,7 +5,8 @@ import '../../../domain/logic/portfolio_engine.dart';
 import '../../../domain/models/coin.dart';
 import '../../../domain/models/position.dart';
 import '../../../storage/prefs_store.dart';
-import 'sell_inline_panel.dart';
+import '../../shared/coin_logo.dart';
+import '../../trade/widgets/sell_sheet.dart';
 
 class HoldingItem extends StatelessWidget {
   final Coin coin;
@@ -39,20 +40,30 @@ class HoldingItem extends StatelessWidget {
       child: Column(
         children: [
           InkWell(
-            onTap: onTap,
+            onTap: () {
+              showSellSheet(
+                context: context,
+                base: coin.base,
+                bid: coin.last,
+                position: position,
+                engine: portfolioEngine,
+                prefsStore: prefsStore,
+              );
+            },
             borderRadius: BorderRadius.circular(14),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Header row: emoji + base, last price, %24h, qty
+                  // Header row: logo + base, last price, %24h, qty
                   Row(
                     children: [
-                      Text(
-                        coin.emoji,
-                        style: const TextStyle(fontSize: 24),
+                      CoinLogo(
+                        base: coin.base,
+                        size: 28,
+                        radius: 6,
+                        padding: const EdgeInsets.only(right: 12),
                       ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,15 +177,6 @@ class HoldingItem extends StatelessWidget {
               ),
             ),
           ),
-          
-          // Expanded sell panel
-          if (isExpanded)
-            SellInlinePanel(
-              coin: coin,
-              position: position,
-              portfolioEngine: portfolioEngine,
-              prefsStore: prefsStore,
-            ),
         ],
       ),
     );

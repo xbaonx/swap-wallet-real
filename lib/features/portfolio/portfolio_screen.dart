@@ -29,7 +29,6 @@ class PortfolioScreen extends StatefulWidget {
 class _PortfolioScreenState extends State<PortfolioScreen> {
   List<Coin> _coins = [];
   late Portfolio _portfolio;
-  String? _expandedCoin;
 
   @override
   void initState() {
@@ -75,11 +74,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     widget.pollingService.updateWatchedPositions(positionBases);
   }
 
-  void _onCoinTap(String base) {
-    setState(() {
-      _expandedCoin = _expandedCoin == base ? null : base;
-    });
-  }
 
   Map<String, double> get _currentPrices {
     final prices = {for (var coin in _coins) coin.base: coin.last};
@@ -164,15 +158,14 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       final entry = holdings[index];
                       final base = entry.key;
                       final data = entry.value;
-                      final isExpanded = _expandedCoin == base;
                       
                       return HoldingItem(
                         coin: data['coin'],
                         position: data['position'],
                         portfolioEngine: widget.portfolioEngine,
                         prefsStore: widget.prefsStore,
-                        isExpanded: isExpanded,
-                        onTap: () => _onCoinTap(base),
+                        isExpanded: false,
+                        onTap: () {},
                       );
                     },
                   ),
