@@ -100,7 +100,7 @@ class PortfolioEngine {
     final newQty = currentPosition.qty - qtySell;
 
     final updatedPositions = Map<String, Position>.from(_portfolio.positions);
-    if (newQty <= 0) {
+    if (newQty <= 1e-8) {
       updatedPositions.remove(base);
     } else {
       updatedPositions[base] = currentPosition.copyWith(qty: newQty);

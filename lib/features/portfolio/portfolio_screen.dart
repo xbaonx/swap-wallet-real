@@ -95,7 +95,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final base = entry.key;
       final position = entry.value;
       
-      if (position.qty > 0) {
+      if (position.qty > 1e-8) {
         final coin = _coins.firstWhere(
           (c) => c.base == base,
           orElse: () => Coin(
