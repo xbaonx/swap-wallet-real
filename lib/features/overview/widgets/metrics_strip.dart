@@ -20,23 +20,7 @@ class MetricsStrip extends StatelessWidget {
     final unrealized = portfolio.calculateTotalUnrealized(currentPrices);
     final netReturn = portfolio.calculateNetReturnPercent(currentPrices);
     
-    // Debug: Kiểm tra nguồn dữ liệu tính toán
-    print('🔍 METRICS DEBUG:');
-    print('   Portfolio.realized: ${portfolio.realized} (from saved data)');
-    print('   Portfolio.deposits: ${portfolio.deposits} (from saved data)');
-    print('   Portfolio.positions count: ${portfolio.positions.length}');
-    
-    for (final entry in portfolio.positions.entries) {
-      final base = entry.key;
-      final pos = entry.value;
-      final currentPrice = currentPrices[base] ?? 0.0;
-      final value = pos.qty * currentPrice;
-      final unrealizedForCoin = (currentPrice - pos.avgEntry) * pos.qty;
-      
-      print('   $base: qty=${pos.qty.toStringAsFixed(6)} avgEntry=\$${pos.avgEntry.toStringAsFixed(2)} currentPrice=\$${currentPrice.toStringAsFixed(2)} value=\$${value.toStringAsFixed(2)} unrealized=\$${unrealizedForCoin.toStringAsFixed(2)}');
-    }
-    
-    print('   TOTALS: coinValue=\$${coinValue.toStringAsFixed(2)} unrealized=\$${unrealized.toStringAsFixed(2)} netReturn=${netReturn.toStringAsFixed(2)}%');
+    // Metrics calculated successfully
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),

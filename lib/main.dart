@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/lifecycle.dart';
-import 'data/polling_service.dart';
+import 'core/service_locator.dart';
 import 'storage/prefs_store.dart';
 
 Future<void> main() async {
@@ -13,16 +12,25 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  final prefs = await SharedPreferences.getInstance();
-  final prefsStore = PrefsStore(prefs);
+  // Initialize service locator with all dependencies
+  final serviceLocator = ServiceLocator();
+  await serviceLocator.initialize();
+
+  // Initialize PrefsStore with SharedPreferences from service locator
+  final prefsStore = PrefsStore(serviceLocator.prefs);
   await prefsStore.initialize();
 
-  final pollingService = PollingService();
-  final lifecycleObserver = AppLifecycleObserver(pollingService, prefsStore);
+  // Try to load wallet if it exists
+  await serviceLocator.loadWalletIfExists();
+
+  final lifecycleObserver = AppLifecycleObserver(
+    serviceLocator.pricesAdapter, // Use prices adapter instead of polling service
+    prefsStore
+  );
 
   runApp(CryptoSwapApp(
     prefsStore: prefsStore,
-    pollingService: pollingService,
+    serviceLocator: serviceLocator,
     lifecycleObserver: lifecycleObserver,
   ));
 }

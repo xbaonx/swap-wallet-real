@@ -78,12 +78,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   Map<String, double> get _currentPrices {
     final prices = {for (var coin in _coins) coin.base: coin.last};
     
-    print('🔍 PRICE MAPPING DEBUG:');
-    print('   _coins.length: ${_coins.length}');
-    if (_coins.isNotEmpty) {
-      print('   Sample coin: ${_coins.first.base} = \$${_coins.first.last}');
-    }
-    print('   Generated prices map: $prices');
+    // Price mapping completed
     
     return prices;
   }

@@ -64,20 +64,21 @@ class _SwapScreenState extends State<SwapScreen> {
   }
 
   void _filterAndSort() {
-    // Get Top50 coins only (exclude watched positions that are not in Top50)
-    final top50Coins = _coins.where((coin) {
-      // Check if this coin is from the original Top50 ranking (has meaningful quoteVolume)
-      return coin.quoteVolume > 0;
+    // Get all coins with valid prices (since quoteVolume is 0 from 1inch API)
+    final validCoins = _coins.where((coin) {
+      // Check if this coin has a valid price
+      return coin.last > 0;
     }).toList();
 
-    _filteredCoins = top50Coins.where((coin) {
+    _filteredCoins = validCoins.where((coin) {
       if (_searchQuery.isEmpty) return true;
       return coin.base.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
 
     switch (_sortType) {
       case SortType.volume:
-        _filteredCoins.sort((a, b) => b.quoteVolume.compareTo(a.quoteVolume));
+        // Sort by price instead since quoteVolume is 0 for 1inch API data
+        _filteredCoins.sort((a, b) => b.last.compareTo(a.last));
         break;
       case SortType.percent24h:
         _filteredCoins.sort((a, b) => b.pct24h.compareTo(a.pct24h));

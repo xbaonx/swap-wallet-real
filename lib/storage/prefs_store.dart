@@ -342,6 +342,20 @@ class PrefsStore {
     await _watchlistStore.saveToPrefs(_prefs);
   }
 
+  /// Save current state when app goes to background
+  Future<void> saveCurrentState() async {
+    try {
+      _debounceTimer?.cancel();
+      await _savePortfolioImmediately(_portfolioNotifier.value);
+      await _saveThemeMode(_themeModeNotifier.value);
+      await _tradeHistoryStore.saveToPrefs(_prefs);
+      await _watchlistStore.saveToPrefs(_prefs);
+      print('🔍 PREFS: Current state saved to disk');
+    } catch (e) {
+      print('🔍 PREFS: Failed to save current state: $e');
+    }
+  }
+
   Map<String, dynamic> _addUpdatedAtToPortfolio(Map<String, dynamic> portfolioJson) {
     portfolioJson['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
     return portfolioJson;

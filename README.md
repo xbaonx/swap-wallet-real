@@ -1,6 +1,6 @@
-# crypto_swap_simulator
+# swap_real
 
-A new Flutter project.
+A Flutter crypto swap application with real-time trading.
 
 ## Getting Started
 

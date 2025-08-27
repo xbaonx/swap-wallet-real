@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'core/theme.dart';
 import 'core/lifecycle.dart';
-import 'data/polling_service.dart';
-import 'domain/logic/portfolio_engine.dart';
+import 'core/service_locator.dart';
 import 'features/portfolio/portfolio_screen.dart';
 import 'features/swap/swap_screen.dart';
+import 'features/settings/settings_screen.dart';
+import 'features/onboarding/onboarding_flow.dart';
 import 'storage/prefs_store.dart';
 
 class CryptoSwapApp extends StatefulWidget {
   final PrefsStore prefsStore;
-  final PollingService pollingService;
+  final ServiceLocator serviceLocator;
   final AppLifecycleObserver lifecycleObserver;
 
   const CryptoSwapApp({
     super.key,
     required this.prefsStore,
-    required this.pollingService,
+    required this.serviceLocator,
     required this.lifecycleObserver,
   });
 
@@ -24,13 +25,13 @@ class CryptoSwapApp extends StatefulWidget {
 }
 
 class _CryptoSwapAppState extends State<CryptoSwapApp> {
-  late final PortfolioEngine _portfolioEngine;
   int _selectedIndex = 0;
+  bool _needsOnboarding = false;
 
   @override
   void initState() {
     super.initState();
-    _portfolioEngine = PortfolioEngine();
+    _checkWalletStatus();
     _selectedIndex = widget.prefsStore.getLastSelectedTab();
     
     // Debug: Check loaded portfolio
@@ -39,27 +40,34 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
     print('   USDT: ${loadedPortfolio.usdt}');
     print('   Positions: ${loadedPortfolio.positions}');
     
-    // ⚠️ QUAN TRỌNG: Set portfolio TRƯỚC khi setup streams
-    _portfolioEngine.setPortfolio(loadedPortfolio);
+    // ⚠️ QUAN TRỌNG: Set portfolio in adapter TRƯỚC khi setup streams
+    widget.serviceLocator.portfolioAdapter.setPortfolio(loadedPortfolio);
     
-    // Debug: Check engine state after setting
-    print('🔍 DEBUG: Engine portfolio after setPortfolio:');
-    print('   USDT: ${_portfolioEngine.currentPortfolio.usdt}');
-    print('   Positions: ${_portfolioEngine.currentPortfolio.positions}');
+    // Debug: Check adapter state after setting
+    print('🔍 DEBUG: Adapter portfolio after setPortfolio:');
+    print('   USDT: ${widget.serviceLocator.portfolioAdapter.currentPortfolio.usdt}');
+    print('   Positions: ${widget.serviceLocator.portfolioAdapter.currentPortfolio.positions}');
     
     // Setup streams SAU KHI đã set portfolio
     _setupPortfolioSync();
     
-    widget.pollingService.start();
+    // Start price adapter instead of polling service
+    widget.serviceLocator.pricesAdapter.start();
+  }
+
+  void _checkWalletStatus() {
+    // Check if wallet exists
+    _needsOnboarding = !widget.serviceLocator.walletService.isInitialized;
+    print('🔍 DEBUG: Needs onboarding: $_needsOnboarding');
   }
 
   void _setupPortfolioSync() {
-    _portfolioEngine.portfolioStream.listen((portfolio) {
+    widget.serviceLocator.portfolioAdapter.portfolioStream.listen((portfolio) {
       widget.prefsStore.savePortfolio(portfolio);
     });
 
     widget.prefsStore.portfolio.addListener(() {
-      _portfolioEngine.setPortfolio(widget.prefsStore.portfolio.value);
+      widget.serviceLocator.portfolioAdapter.setPortfolio(widget.prefsStore.portfolio.value);
     });
   }
 
@@ -70,47 +78,66 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
     widget.prefsStore.setLastSelectedTab(index);
   }
 
+  void _onOnboardingComplete() {
+    setState(() {
+      _needsOnboarding = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: widget.prefsStore.themeMode,
       builder: (context, themeMode, child) {
         return MaterialApp(
-          title: 'Crypto Swap Simulator',
+          title: 'BSC Wallet',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
-          home: Scaffold(
-            body: IndexedStack(
-              index: _selectedIndex,
-              children: [
-                PortfolioScreen(
-                  prefsStore: widget.prefsStore,
-                  pollingService: widget.pollingService,
-                  portfolioEngine: _portfolioEngine,
+          home: _needsOnboarding
+              ? OnboardingFlow(
+                  serviceLocator: widget.serviceLocator,
+                  onComplete: _onOnboardingComplete,
+                )
+              : Scaffold(
+                  body: IndexedStack(
+                    index: _selectedIndex,
+                    children: [
+                      PortfolioScreen(
+                        prefsStore: widget.prefsStore,
+                        pollingService: widget.serviceLocator.pricesAdapter, // Use prices adapter
+                        portfolioEngine: widget.serviceLocator.portfolioAdapter, // Use portfolio adapter
+                      ),
+                      SwapScreen(
+                        prefsStore: widget.prefsStore,
+                        pollingService: widget.serviceLocator.pricesAdapter, // Use prices adapter
+                        portfolioEngine: widget.serviceLocator.portfolioAdapter, // Use portfolio adapter
+                      ),
+                      SettingsScreen(
+                        serviceLocator: widget.serviceLocator,
+                      ),
+                    ],
+                  ),
+                  bottomNavigationBar: BottomNavigationBar(
+                    type: BottomNavigationBarType.fixed,
+                    items: const [
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.account_balance_wallet),
+                        label: 'Portfolio',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.swap_horiz),
+                        label: 'Swap',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.settings),
+                        label: 'Settings',
+                      ),
+                    ],
+                    currentIndex: _selectedIndex,
+                    onTap: _onItemTapped,
+                  ),
                 ),
-                SwapScreen(
-                  prefsStore: widget.prefsStore,
-                  pollingService: widget.pollingService,
-                  portfolioEngine: _portfolioEngine,
-                ),
-              ],
-            ),
-            bottomNavigationBar: BottomNavigationBar(
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.account_balance_wallet),
-                  label: 'Dashboard',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.swap_horiz),
-                  label: 'Swap',
-                ),
-              ],
-              currentIndex: _selectedIndex,
-              onTap: _onItemTapped,
-            ),
-          ),
           debugShowCheckedModeBanner: false,
         );
       },
@@ -119,7 +146,7 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
 
   @override
   void dispose() {
-    _portfolioEngine.dispose();
+    widget.serviceLocator.dispose();
     super.dispose();
   }
 }

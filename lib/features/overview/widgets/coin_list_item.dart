@@ -5,15 +5,17 @@ import '../../../data/polling_service.dart';
 import '../../../domain/logic/portfolio_engine.dart';
 import '../../../domain/models/coin.dart';
 import '../../../domain/models/portfolio.dart';
+import '../../../storage/prefs_store.dart';
 import '../../shared/coin_logo.dart';
 import 'sparkline.dart';
-import 'swap_inline_panel.dart';
+import '../../swap/widgets/swap_inline_panel.dart';
 
 class CoinListItem extends StatelessWidget {
   final Coin coin;
   final Portfolio portfolio;
   final PortfolioEngine portfolioEngine;
   final PollingService pollingService;
+  final PrefsStore prefsStore;
   final bool isExpanded;
   final VoidCallback onTap;
 
@@ -23,6 +25,7 @@ class CoinListItem extends StatelessWidget {
     required this.portfolio,
     required this.portfolioEngine,
     required this.pollingService,
+    required this.prefsStore,
     required this.isExpanded,
     required this.onTap,
   });
@@ -154,6 +157,7 @@ class CoinListItem extends StatelessWidget {
               coin: coin,
               portfolio: portfolio,
               portfolioEngine: portfolioEngine,
+              prefsStore: prefsStore,
             ),
         ],
       ),
