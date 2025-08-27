@@ -51,8 +51,13 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
     // Setup streams SAU KHI đã set portfolio
     _setupPortfolioSync();
     
-    // Start price adapter instead of polling service
-    widget.serviceLocator.pricesAdapter.start();
+    // Start Binance services for charts and indicators
+    // Pass TokenRegistry to RankingService to filter only BSC-compatible tokens
+    widget.serviceLocator.rankingService.start(tokenRegistry: widget.serviceLocator.tokenRegistry);
+    widget.serviceLocator.pollingService.start();
+    
+    // Start 1inch price adapter for swap functionality (optional, used for swap screen hardcoded tokens)
+    // widget.serviceLocator.pricesAdapter.start();
   }
 
   void _checkWalletStatus() {
@@ -105,12 +110,12 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
                     children: [
                       PortfolioScreen(
                         prefsStore: widget.prefsStore,
-                        pollingService: widget.serviceLocator.pricesAdapter, // Use prices adapter
+                        pollingService: widget.serviceLocator.pollingService, // Use Binance for charts/indicators
                         portfolioEngine: widget.serviceLocator.portfolioAdapter, // Use portfolio adapter
                       ),
                       SwapScreen(
                         prefsStore: widget.prefsStore,
-                        pollingService: widget.serviceLocator.pricesAdapter, // Use prices adapter
+                        pollingService: widget.serviceLocator.pollingService, // Use Binance for price data
                         portfolioEngine: widget.serviceLocator.portfolioAdapter, // Use portfolio adapter
                       ),
                       SettingsScreen(

@@ -34,17 +34,20 @@ class _SwapScreenState extends State<SwapScreen> {
   String _searchQuery = '';
   SortType _sortType = SortType.volume;
 
+
   @override
   void initState() {
     super.initState();
     // Initialize với portfolio thật từ prefsStore/engine
     _portfolio = widget.portfolioEngine.currentPortfolio;
+    
     _setupStreams();
   }
 
   void _setupStreams() {
     widget.pollingService.coinsStream.listen((coins) {
       setState(() {
+        // Use only real API data from Binance
         _coins = coins;
         _filterAndSort();
       });

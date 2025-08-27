@@ -28,6 +28,8 @@ class InchClient {
     }
   }
 
+  HttpClient get httpClient => _httpClient;
+
   Map<String, String> get _authHeaders => {
         'Authorization': 'Bearer $_apiKey',
       };

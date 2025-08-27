@@ -2,17 +2,20 @@ import 'dart:async';
 import '../core/constants.dart';
 import '../domain/models/coin.dart';
 import 'binance_client.dart';
+import 'token/token_registry.dart';
 
 class RankingService {
   final BinanceClient _client = BinanceClient();
   final StreamController<List<Coin>> _rankingController = StreamController<List<Coin>>.broadcast();
   Timer? _refreshTimer;
   List<Coin> _currentTop50 = [];
+  TokenRegistry? _tokenRegistry;
 
   Stream<List<Coin>> get top50Stream => _rankingController.stream;
   List<Coin> get currentTop50 => List.unmodifiable(_currentTop50);
 
-  Future<void> start() async {
+  Future<void> start({TokenRegistry? tokenRegistry}) async {
+    _tokenRegistry = tokenRegistry;
     await _refreshRanking();
     _refreshTimer = Timer.periodic(
       Duration(minutes: AppConstants.rankingRefreshMinutes),
@@ -37,24 +40,42 @@ class RankingService {
         
         if (_isValidUsdtPair(symbol)) {
           final base = symbol.substring(0, symbol.length - 4);
-          validCoins.add(Coin(
-            symbolPair: symbol,
-            base: base,
-            last: data['lastPrice'],
-            bid: data['lastPrice'], // Will be updated by polling
-            ask: data['lastPrice'], // Will be updated by polling
-            pct24h: data['priceChangePercent'],
-            quoteVolume: data['quoteVolume'],
-          ));
+          
+          // Only include tokens that exist on BSC (in TokenRegistry)
+          if (_tokenRegistry != null && _tokenRegistry!.hasSymbol(base)) {
+            validCoins.add(Coin(
+              symbolPair: symbol,
+              base: base,
+              last: data['lastPrice'],
+              bid: data['lastPrice'], // Will be updated by polling
+              ask: data['lastPrice'], // Will be updated by polling
+              pct24h: data['priceChangePercent'],
+              quoteVolume: data['quoteVolume'],
+            ));
+          } else if (_tokenRegistry == null) {
+            // Fallback when TokenRegistry not available
+            validCoins.add(Coin(
+              symbolPair: symbol,
+              base: base,
+              last: data['lastPrice'],
+              bid: data['lastPrice'],
+              ask: data['lastPrice'],
+              pct24h: data['priceChangePercent'],
+              quoteVolume: data['quoteVolume'],
+            ));
+          }
         }
       }
 
       validCoins.sort((a, b) => b.quoteVolume.compareTo(a.quoteVolume));
       _currentTop50 = validCoins.take(AppConstants.top50Count).toList();
       
-      print('🔍 RANKING: Processed ${_currentTop50.length} valid coins');
+      print('🔍 RANKING: Processed ${_currentTop50.length} BSC-compatible coins');
       if (_currentTop50.isNotEmpty) {
         print('   Top coin: ${_currentTop50.first.base} vol=${_currentTop50.first.quoteVolume}');
+      }
+      if (_tokenRegistry != null) {
+        print('🔍 RANKING: Filtered using TokenRegistry (BSC tokens only)');
       }
       
       _rankingController.add(_currentTop50);

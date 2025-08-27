@@ -46,86 +46,6 @@ class PricesAdapter extends PollingService {
   List<Coin> _currentTop50 = [];
   Set<String> _watchedPositions = <String>{};
 
-  // Token mapping for CoinGecko IDs
-  static const Map<String, String> _coinGeckoIds = {
-    'BNB': 'binancecoin',
-    'CAKE': 'pancakeswap-token',
-    'WETH': 'ethereum',
-    'BTCB': 'bitcoin',
-    'ADA': 'cardano',
-    'DOT': 'polkadot',
-    'UNI': 'uniswap',
-    'LINK': 'chainlink',
-    'LTC': 'litecoin',
-    'XRP': 'ripple',
-    'SHIB': 'shiba-inu',
-    'AAVE': 'aave',
-    'PEPE': 'pepe',
-    'FLOKI': 'floki',
-    'GALA': 'gala',
-    '1INCH': '1inch',
-    'MATIC': 'matic-network',
-    'XVS': 'venus',
-    'VAI': 'vai',
-    'ALPACA': 'alpaca-finance',
-    'BIFI': 'beefy-finance',
-    'AUTO': 'autofarm',
-    'AXS': 'axie-infinity',
-    'SLP': 'smooth-love-potion',
-    'TLM': 'alien-worlds',
-    'SAFEMOON': 'safemoon-2',
-    'BABYDOGE': 'baby-doge-coin',
-    'DOGE': 'dogecoin',
-    'FTM': 'fantom',
-    'AVAX': 'avalanche-2',
-  };
-
-  // Hardcoded BSC tokens with verified addresses (kept for reference)
-  static const List<TokenInfo> _top30Tokens = [
-    // Native BSC tokens
-    TokenInfo(symbol: 'BNB', name: 'BNB', address: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', decimals: 18),
-    TokenInfo(symbol: 'CAKE', name: 'PancakeSwap Token', address: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', decimals: 18),
-    
-    // Major bridged tokens on BSC
-    TokenInfo(symbol: 'WETH', name: 'Wrapped Ether', address: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8', decimals: 18),
-    TokenInfo(symbol: 'BTCB', name: 'Bitcoin BEP2', address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c', decimals: 18),
-    TokenInfo(symbol: 'ADA', name: 'Cardano Token', address: '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47', decimals: 18),
-    TokenInfo(symbol: 'DOT', name: 'Polkadot Token', address: '0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402', decimals: 18),
-    TokenInfo(symbol: 'UNI', name: 'Uniswap', address: '0xBf5140A22578168FD562DCcF235E5D43A02ce9B1', decimals: 18),
-    TokenInfo(symbol: 'LINK', name: 'ChainLink', address: '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD', decimals: 18),
-    TokenInfo(symbol: 'LTC', name: 'Litecoin Token', address: '0x4338665CBB7B2485A8855A139b75D5e34AB0DB94', decimals: 18),
-    TokenInfo(symbol: 'XRP', name: 'XRP Token', address: '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE', decimals: 18),
-    
-    // Popular BSC tokens
-    TokenInfo(symbol: 'SHIB', name: 'SHIBA INU', address: '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D', decimals: 18),
-    TokenInfo(symbol: 'AAVE', name: 'Aave', address: '0xfb6115445Bff7b52FeB98650C87f44907E58f802', decimals: 18),
-    TokenInfo(symbol: 'PEPE', name: 'Pepe', address: '0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00', decimals: 18),
-    TokenInfo(symbol: 'FLOKI', name: 'FLOKI', address: '0xfb5B838b6cfEEdC2873aB27866079AC55363D37E', decimals: 9),
-    TokenInfo(symbol: 'GALA', name: 'Gala', address: '0x7dDEE176F665cD201F93eEDE625770E2fD911990', decimals: 8),
-    TokenInfo(symbol: '1INCH', name: '1inch', address: '0x111111111117dC0aa78b770fA6A738034120C302', decimals: 18),
-    TokenInfo(symbol: 'MATIC', name: 'Polygon', address: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD', decimals: 18),
-    
-    // DeFi tokens on BSC
-    TokenInfo(symbol: 'XVS', name: 'Venus', address: '0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63', decimals: 18),
-    TokenInfo(symbol: 'VAI', name: 'VAI Stablecoin', address: '0x4BD17003473389A42DAF6a0a729f6Fdb328BbBd7', decimals: 18),
-    TokenInfo(symbol: 'ALPACA', name: 'Alpaca Finance', address: '0x8F0528cE5eF7B51152A59745bEfDD91D97091d2F', decimals: 18),
-    TokenInfo(symbol: 'BIFI', name: 'Beefy Finance', address: '0xCa3F508B8e4Dd382eE878A314789373D80A5190A', decimals: 18),
-    TokenInfo(symbol: 'AUTO', name: 'AUTOv2', address: '0xa184088a740c695E156F91f5cC086a06bb78b827', decimals: 18),
-    
-    // Gaming tokens
-    TokenInfo(symbol: 'AXS', name: 'Axie Infinity Shard', address: '0x715D400F88537EE1756193CCD8C2D5169B7cc25e', decimals: 18),
-    TokenInfo(symbol: 'SLP', name: 'Smooth Love Potion', address: '0x070a08BeFCF6415f2CD7B88c5D6a84F2FF02f4Cf', decimals: 18),
-    TokenInfo(symbol: 'TLM', name: 'Alien Worlds', address: '0x2222227E22102Fe3322098e4CBfE18cFebD57c95', decimals: 4),
-    
-    // Meme tokens
-    TokenInfo(symbol: 'SAFEMOON', name: 'SafeMoon', address: '0x8076C74C5e3F5852037F31Ff0093Eeb8c8ADd8D3', decimals: 9),
-    TokenInfo(symbol: 'BABYDOGE', name: 'Baby Doge Coin', address: '0xc748673057861a797275CD8A068AbB95A902e8de', decimals: 9),
-    
-    // Other popular tokens
-    TokenInfo(symbol: 'DOGE', name: 'Dogecoin', address: '0xbA2aE424d960c26247Dd6c32edC70B295c744C43', decimals: 8),
-    TokenInfo(symbol: 'FTM', name: 'Fantom Token', address: '0xAD29AbB318791D579433D831ed122aFeAf29dcfe', decimals: 18),
-    TokenInfo(symbol: 'AVAX', name: 'Avalanche Token', address: '0x1CE0c2827e2eF14D5C4f29a091d735A204794041', decimals: 18),
-  ];
 
   // USDT address on BSC
   static const String _usdtAddress = '0x55d398326f99059ff775485246999027b3197955';
@@ -287,78 +207,20 @@ class PricesAdapter extends PollingService {
 
   void _emitFallbackAndMarkOffline() {
     _isOffline = true;
-    final fallbackCoins = <Coin>[
-      Coin(symbolPair: 'BNBUSDT', base: 'BNB', last: 580.0, bid: 579.0, ask: 581.0, pct24h: 2.5, quoteVolume: 1000000.0),
-      Coin(symbolPair: 'USDTUSDT', base: 'USDT', last: 1.0, bid: 0.999, ask: 1.001, pct24h: 0.0, quoteVolume: 2000000.0),
-      Coin(symbolPair: 'USDCUSDT', base: 'USDC', last: 1.0, bid: 0.999, ask: 1.001, pct24h: 0.1, quoteVolume: 1500000.0),
-      Coin(symbolPair: 'ETHUSDT', base: 'ETH', last: 3200.0, bid: 3195.0, ask: 3205.0, pct24h: 1.8, quoteVolume: 800000.0),
-      Coin(symbolPair: 'CAKEUSDT', base: 'CAKE', last: 2.5, bid: 2.49, ask: 2.51, pct24h: -1.2, quoteVolume: 500000.0),
-    ];
-    _currentTop50 = fallbackCoins;
-    _currentCoins = List.from(fallbackCoins);
+    print('🔍 PRICES ADAPTER: Network error, no fallback data - using Binance for prices');
+    // No hardcoded fallback - let Binance handle price display
+    _currentTop50 = [];
+    _currentCoins = [];
     if (!_rankingController.isClosed) _rankingController.add(_currentTop50);
     if (!_coinsController.isClosed) _coinsController.add(_currentCoins);
   }
 
   Future<void> _updateRanking() async {
     if (_isPaused) return;
-
-    try {
-      final coins = <Coin>[];
-      
-      // Use CoinGecko batch API for all tokens in 1 request
-      final coinGeckoIds = _coinGeckoIds.values.join(',');
-      final url = 'https://api.coingecko.com/api/v3/simple/price?ids=$coinGeckoIds&vs_currencies=usd&include_24hr_change=true';
-      
-      final response = await _inchClient.httpClient.get(url);
-      final priceData = response.data as Map<String, dynamic>;
-      
-      // Convert CoinGecko data to Coin objects
-      for (final entry in _coinGeckoIds.entries) {
-        final symbol = entry.key;
-        final geckoId = entry.value;
-        
-        final tokenData = priceData[geckoId] as Map<String, dynamic>?;
-        if (tokenData == null) continue;
-        
-        final price = (tokenData['usd'] as num?)?.toDouble() ?? 0.0;
-        final change24h = (tokenData['usd_24h_change'] as num?)?.toDouble() ?? 0.0;
-        
-        if (price > 0) {
-          coins.add(
-            Coin(
-              symbolPair: '${symbol}USDT',
-              base: symbol,
-              last: price,
-              bid: price * 0.999,
-              ask: price * 1.001,
-              pct24h: change24h,
-              quoteVolume: 1000000.0, // Dummy volume for UI sorting
-            ),
-          );
-        }
-      }
-
-      // Only use fallback if we got very few results (less than 10)
-      if (coins.length < 10) {
-        _emitFallbackAndMarkOffline();
-        return;
-      }
-
-      // Sort by price descending (highest to lowest)
-      coins.sort((a, b) => b.last.compareTo(a.last));
-
-      _currentTop50 = coins.take(50).toList();
-      _currentCoins = List.from(_currentTop50);
-
-      if (!_rankingController.isClosed) _rankingController.add(_currentTop50);
-      if (!_coinsController.isClosed) _coinsController.add(_currentCoins);
-
-      _isOffline = false;
-      // Ranking updated successfully
-    } catch (e) {
-      _emitFallbackAndMarkOffline();
-    }
+    
+    // This adapter is no longer used for price display - Binance handles that
+    // Only maintain minimal functionality for swap operations if needed
+    print('🔍 PRICES ADAPTER: Ranking update skipped - using Binance for price data');
   }
 
   Future<void> _updatePrices() async {

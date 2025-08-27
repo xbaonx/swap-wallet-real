@@ -24,7 +24,7 @@ Future<void> main() async {
   await serviceLocator.loadWalletIfExists();
 
   final lifecycleObserver = AppLifecycleObserver(
-    serviceLocator.pricesAdapter, // Use prices adapter instead of polling service
+    serviceLocator.pollingService, // Use Binance polling service for lifecycle management
     prefsStore
   );
 

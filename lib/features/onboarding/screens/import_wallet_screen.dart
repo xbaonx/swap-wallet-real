@@ -112,8 +112,9 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
               const SizedBox(height: 16),
               
               Text(
@@ -265,7 +266,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                 ),
               ),
               
-              const Spacer(),
+              const SizedBox(height: 32),
               
               // Import Button
               SizedBox(

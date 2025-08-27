@@ -8,6 +8,8 @@ import '../data/token/token_registry.dart';
 import '../data/prices/prices_adapter.dart';
 import '../data/portfolio/portfolio_adapter.dart';
 import '../onchain/swap/swap_adapter.dart';
+import '../data/polling_service.dart';
+import '../data/ranking_service.dart';
 
 /// Service locator for dependency injection
 class ServiceLocator {
@@ -23,7 +25,11 @@ class ServiceLocator {
   late RpcClient _rpcClient;
   late TokenRegistry _tokenRegistry;
   
-  // Adapters (replace old services)
+  // Binance services (for charts and indicators)
+  late PollingService _pollingService;
+  late RankingService _rankingService;
+  
+  // 1inch adapters (for swap functionality)
   late PricesAdapter _pricesAdapter;
   late PortfolioAdapter _portfolioAdapter;
   late SwapAdapter _swapAdapter;
@@ -55,7 +61,11 @@ class ServiceLocator {
     );
     await _tokenRegistry.initialize();
 
-    // Initialize adapters (these replace the old services)
+    // Initialize Binance services (for charts and indicators)  
+    _pollingService = PollingService();
+    _rankingService = RankingService();
+
+    // Initialize 1inch adapters (for swap functionality)
     _pricesAdapter = PricesAdapter(
       inchClient: _inchClient,
       tokenRegistry: _tokenRegistry,
@@ -101,7 +111,11 @@ class ServiceLocator {
   RpcClient get rpcClient => _rpcClient;
   TokenRegistry get tokenRegistry => _tokenRegistry;
 
-  // Adapters (these are what the UI will use)
+  // Binance services (for charts and indicators)
+  PollingService get pollingService => _pollingService;
+  RankingService get rankingService => _rankingService;
+
+  // 1inch adapters (for swap functionality)
   PricesAdapter get pricesAdapter => _pricesAdapter;
   PortfolioAdapter get portfolioAdapter => _portfolioAdapter;
   SwapAdapter get swapAdapter => _swapAdapter;
@@ -125,7 +139,11 @@ class ServiceLocator {
       prefs: _prefs,
     );
 
-    // Initialize adapters
+    // Initialize Binance services
+    _pollingService = PollingService();
+    _rankingService = RankingService();
+
+    // Initialize 1inch adapters
     _pricesAdapter = PricesAdapter(
       inchClient: _inchClient,
       tokenRegistry: _tokenRegistry,
@@ -153,6 +171,8 @@ class ServiceLocator {
     _inchClient.dispose();
     _moralisClient.dispose();
     _rpcClient.dispose();
+    _pollingService.stop();
+    _rankingService.stop();
     _pricesAdapter.stop();
     _portfolioAdapter.dispose();
     _swapAdapter.dispose();
