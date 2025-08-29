@@ -1,4 +1,6 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart';
 import '../core/http.dart';
 import '../core/errors.dart';
 import 'models/moralis_models.dart';
@@ -10,6 +12,12 @@ class MoralisClient {
   
   static const String _baseUrl = 'https://deep-index.moralis.io/api/v2.2';
   static const String _bscChain = 'bsc';
+  static const Map<String, String> _wrappedNativeByChain = {
+    // EVM chain -> wrapped native token contract on that chain
+    'bsc': '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', // WBNB
+    'eth': '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH
+    'polygon': '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270', // WMATIC
+  };
 
   MoralisClient()
       : _apiKey = dotenv.env['MORALIS_API_KEY'] ?? '',
@@ -78,7 +86,25 @@ class MoralisClient {
         headers: _authHeaders,
       );
 
-      return MoralisTokenBalancesResponse.fromJson(response.data);
+      if (kDebugMode) {
+        dev.log('🔍 MORALIS DEBUG: Raw response type: ${response.data.runtimeType}');
+        dev.log('🔍 MORALIS DEBUG: Raw response: ${response.data}');
+      }
+
+      // Handle both direct array and wrapped response formats
+      final responseData = response.data;
+      if (responseData is List) {
+        // Direct array format
+        final tokenBalances = responseData
+            .map((item) => MoralisTokenBalance.fromJson(item as Map<String, dynamic>))
+            .toList();
+        return MoralisTokenBalancesResponse(result: tokenBalances, cursor: null);
+      } else if (responseData is Map<String, dynamic>) {
+        // Wrapped format
+        return MoralisTokenBalancesResponse.fromJson(responseData);
+      } else {
+        throw AppError.networkError('Unexpected response format: ${responseData.runtimeType}');
+      }
     } catch (e) {
       throw AppError.networkError('Failed to fetch wallet balances: $e');
     }
@@ -172,6 +198,23 @@ class MoralisClient {
       return priceData.usdPrice;
     } catch (e) {
       throw AppError.networkError('Failed to fetch BNB price: $e');
+    }
+  }
+
+  /// Get native token price for a specific EVM chain (e.g., ETH for eth, MATIC for polygon)
+  Future<double> getNativePrice({required String chain}) async {
+    try {
+      final tokenAddress = _wrappedNativeByChain[chain];
+      if (tokenAddress == null) {
+        throw AppError(
+          code: AppErrorCode.unknown,
+          message: 'Unsupported chain for native price: $chain',
+        );
+      }
+      final priceData = await tokenPrice(tokenAddress: tokenAddress, chain: chain);
+      return priceData.usdPrice;
+    } catch (e) {
+      throw AppError.networkError('Failed to fetch native price for $chain: $e');
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as dev;
 import '../data/polling_service.dart';
 import '../storage/prefs_store.dart';
 
@@ -17,7 +18,7 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
     
     switch (state) {
       case AppLifecycleState.resumed:
-        print('🔍 LIFECYCLE: App resumed from background=$_isBackground');
+        dev.log('🔍 LIFECYCLE: App resumed from background=$_isBackground');
         if (_isBackground) {
           // Only resume if we were actually in background
           _pollingService.resume();
@@ -25,7 +26,7 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
         }
         break;
       case AppLifecycleState.paused:
-        print('🔍 LIFECYCLE: App paused, saving state and pausing services');
+        dev.log('🔍 LIFECYCLE: App paused, saving state and pausing services');
         _isBackground = true;
         // Save current state before going to background
         _prefsStore.saveCurrentState();
@@ -34,16 +35,16 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
         break;
       case AppLifecycleState.inactive:
         // Don't pause on inactive (e.g., during orientation change)
-        print('🔍 LIFECYCLE: App inactive (temporary)');
+        dev.log('🔍 LIFECYCLE: App inactive (temporary)');
         break;
       case AppLifecycleState.detached:
-        print('🔍 LIFECYCLE: App detached, performing cleanup');
+        dev.log('🔍 LIFECYCLE: App detached, performing cleanup');
         _isBackground = false;
         // Clean shutdown - this is when app is actually being killed
         _pollingService.stop();
         break;
       case AppLifecycleState.hidden:
-        print('🔍 LIFECYCLE: App hidden');
+        dev.log('🔍 LIFECYCLE: App hidden');
         break;
     }
   }
@@ -51,7 +52,7 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
   @override
   void didHaveMemoryPressure() {
     super.didHaveMemoryPressure();
-    print('🔍 LIFECYCLE: Memory pressure detected - reducing activity');
+    dev.log('🔍 LIFECYCLE: Memory pressure detected - reducing activity');
     
     // Temporarily pause polling to free up memory
     if (!_isBackground) {

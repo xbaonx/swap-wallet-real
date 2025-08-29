@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/inch_client.dart';
 import '../../services/models/oneinch_models.dart';
@@ -50,6 +51,11 @@ class TokenInfo {
     );
   }
 }
+
+/// Aliases to canonicalize symbols on BSC network (e.g., BTC -> BTCB)
+const Map<String, String> kBscSymbolAliases = {
+  'BTC': 'BTCB',
+};
 
 class TokenRegistry {
   final InchClient _inchClient;
@@ -104,6 +110,19 @@ class TokenRegistry {
     }
     
     return tokens.take(limit).toList();
+  }
+  
+  void _applySymbolAliases() {
+    // Map alias symbol -> target token if target exists
+    for (final entry in kBscSymbolAliases.entries) {
+      final alias = entry.key.toUpperCase();
+      final target = entry.value.toUpperCase();
+      final targetToken = _symbolToToken[target];
+      if (targetToken != null) {
+        _symbolToToken[alias] = targetToken;
+      }
+    }
+    dev.log('TokenRegistry: Applied ${kBscSymbolAliases.length} symbol aliases');
   }
   
   /// Fallback tokens for when API is unavailable
@@ -185,7 +204,7 @@ class TokenRegistry {
   /// Refresh tokens from 1inch API
   Future<void> refreshTokens() async {
     try {
-      print('TokenRegistry: Fetching tokens from 1inch...');
+      dev.log('TokenRegistry: Fetching tokens from 1inch...');
       final response = await _inchClient.tokens();
       
       _symbolToToken.clear();
@@ -197,10 +216,13 @@ class TokenRegistry {
         _addressToToken[token.address.toLowerCase()] = token;
       }
       
+      // Apply BSC-specific symbol aliases (e.g., BTC -> BTCB)
+      _applySymbolAliases();
+      
       _lastRefresh = DateTime.now();
       await _saveToCache();
       
-      print('TokenRegistry: Cached ${_symbolToToken.length} tokens');
+      dev.log('TokenRegistry: Cached ${_symbolToToken.length} tokens');
     } catch (e) {
       throw AppError.networkError('Failed to refresh tokens: $e');
     }
@@ -236,10 +258,13 @@ class TokenRegistry {
           _addressToToken[token.address.toLowerCase()] = token;
         }
         
-        print('TokenRegistry: Loaded ${_symbolToToken.length} tokens from cache');
+        // Re-apply aliases after loading from cache
+        _applySymbolAliases();
+        
+        dev.log('TokenRegistry: Loaded ${_symbolToToken.length} tokens from cache');
       }
     } catch (e) {
-      print('TokenRegistry: Failed to load cache: $e');
+      dev.log('TokenRegistry: Failed to load cache: $e');
       // Clear corrupted cache
       await _prefs.remove(_cacheKey);
       await _prefs.remove(_lastRefreshKey);
@@ -257,7 +282,7 @@ class TokenRegistry {
       await _prefs.setString(_cacheKey, cacheJson);
       await _prefs.setInt(_lastRefreshKey, _lastRefresh!.millisecondsSinceEpoch);
     } catch (e) {
-      print('TokenRegistry: Failed to save cache: $e');
+      dev.log('TokenRegistry: Failed to save cache: $e');
     }
   }
 

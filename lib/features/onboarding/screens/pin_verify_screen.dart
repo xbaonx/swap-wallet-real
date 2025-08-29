@@ -1,89 +1,76 @@
+import 'dart:developer' as dev;
 import 'package:flutter/material.dart';
+import '../../../core/storage.dart';
 
-class PinSetupScreen extends StatefulWidget {
-  final Function(String pin) onPinSet;
-  final VoidCallback onSkip;
+class PinVerifyScreen extends StatefulWidget {
   final VoidCallback onBack;
-  final bool showSkip;
+  final VoidCallback onVerified;
   final String title;
+  final String description;
 
-  const PinSetupScreen({
+  const PinVerifyScreen({
     super.key,
-    required this.onPinSet,
-    required this.onSkip,
     required this.onBack,
-    this.showSkip = true,
-    this.title = 'Setup PIN',
+    required this.onVerified,
+    this.title = 'Nhập PIN',
+    this.description = 'Nhập PIN hiện tại để tiếp tục',
   });
 
   @override
-  State<PinSetupScreen> createState() => _PinSetupScreenState();
+  State<PinVerifyScreen> createState() => _PinVerifyScreenState();
 }
 
-class _PinSetupScreenState extends State<PinSetupScreen> {
+class _PinVerifyScreenState extends State<PinVerifyScreen> {
   String _enteredPin = '';
-  String _confirmPin = '';
-  bool _isConfirmMode = false;
   String? _errorMessage;
+  bool _verifying = false;
 
   void _onNumberPressed(String number) {
+    if (_verifying) return;
     setState(() {
       _errorMessage = null;
-      
-      if (!_isConfirmMode) {
-        if (_enteredPin.length < 6) {
-          _enteredPin += number;
-          if (_enteredPin.length == 6) {
-            _isConfirmMode = true;
-          }
-        }
-      } else {
-        if (_confirmPin.length < 6) {
-          _confirmPin += number;
-          if (_confirmPin.length == 6) {
-            _validatePins();
-          }
+      if (_enteredPin.length < 6) {
+        _enteredPin += number;
+        if (_enteredPin.length == 6) {
+          _verify();
         }
       }
     });
   }
 
   void _onDeletePressed() {
+    if (_verifying) return;
     setState(() {
       _errorMessage = null;
-      
-      if (!_isConfirmMode) {
-        if (_enteredPin.isNotEmpty) {
-          _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1);
-        }
-      } else {
-        if (_confirmPin.isNotEmpty) {
-          _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
-        }
+      if (_enteredPin.isNotEmpty) {
+        _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1);
       }
     });
   }
 
-  void _validatePins() {
-    if (_enteredPin == _confirmPin) {
-      widget.onPinSet(_enteredPin);
-    } else {
+  Future<void> _verify() async {
+    setState(() => _verifying = true);
+    try {
+      final ok = await SecureStorage.verifyPin(_enteredPin);
+      if (!mounted) return;
+      if (ok) {
+        widget.onVerified();
+      } else {
+        setState(() {
+          _errorMessage = 'PIN không đúng. Vui lòng thử lại.';
+          _enteredPin = '';
+        });
+      }
+    } catch (e) {
+      dev.log('PIN verify error: $e', name: 'pin_verify');
+      if (!mounted) return;
       setState(() {
-        _errorMessage = 'PINs do not match. Please try again.';
+        _errorMessage = 'Không thể xác thực PIN';
         _enteredPin = '';
-        _confirmPin = '';
-        _isConfirmMode = false;
       });
+    } finally {
+      if (mounted) setState(() => _verifying = false);
     }
-  }
-
-  void _reset() {
-    setState(() {
-      _enteredPin = '';
-      _confirmPin = '';
-      _isConfirmMode = false;
-      _errorMessage = null;
-    });
   }
 
   @override
@@ -96,13 +83,6 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         ),
         title: Text(widget.title),
         centerTitle: true,
-        actions: [
-          if (widget.showSkip)
-            TextButton(
-              onPressed: widget.onSkip,
-              child: const Text('Skip'),
-            ),
-        ],
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -111,48 +91,45 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
             return SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(24, 24, 24, bottomInset + 24),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 48, // account for vertical padding
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
                 child: IntrinsicHeight(
                   child: Column(
                     children: [
                       const SizedBox(height: 8),
                       Icon(
-                        Icons.lock,
+                        Icons.lock_outline,
                         size: 64,
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        _isConfirmMode ? 'Confirm Your PIN' : 'Create Your PIN',
+                        widget.title,
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        _isConfirmMode
-                            ? 'Enter your PIN again to confirm'
-                            : 'Create a 6-digit PIN to secure your wallet',
+                        widget.description,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.7),
                             ),
                       ),
                       const SizedBox(height: 32),
-                      // PIN Display
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(6, (index) {
-                          final currentPin = _isConfirmMode ? _confirmPin : _enteredPin;
                           return Container(
                             margin: const EdgeInsets.symmetric(horizontal: 8),
                             width: 20,
                             height: 20,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: index < currentPin.length
+                              color: index < _enteredPin.length
                                   ? Theme.of(context).colorScheme.primary
                                   : Theme.of(context).dividerColor,
                             ),
@@ -160,7 +137,6 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                         }),
                       ),
                       const SizedBox(height: 16),
-                      // Error Message
                       if (_errorMessage != null) ...[
                         Text(
                           _errorMessage!,
@@ -170,13 +146,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: _reset,
-                          child: const Text('Try Again'),
-                        ),
                       ],
                       const SizedBox(height: 16),
-                      // Number Pad
                       _buildNumberPad(),
                       const SizedBox(height: 8),
                     ],
@@ -193,7 +164,6 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   Widget _buildNumberPad() {
     return Column(
       children: [
-        // Numbers 1-3
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -203,8 +173,6 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        
-        // Numbers 4-6
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -214,8 +182,6 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        
-        // Numbers 7-9
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -225,12 +191,10 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        
-        // 0 and Delete
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            const SizedBox(width: 72), // Empty space
+            const SizedBox(width: 72),
             _buildNumberButton('0'),
             _buildDeleteButton(),
           ],
@@ -254,9 +218,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           child: Text(
             number,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
           ),
         ),
       ),

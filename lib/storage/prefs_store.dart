@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -90,7 +91,7 @@ class PrefsStore {
           await _prefs.setString(_keyPortfolio, jsonEncode(json));
         }
       } catch (e) {
-        print('Error migrating portfolio: $e');
+        dev.log('Error migrating portfolio: $e');
       }
     }
 
@@ -137,20 +138,20 @@ class PrefsStore {
 
   Future<void> _loadPortfolio() async {
     final portfolioString = _prefs.getString(_keyPortfolio);
-    print('🔍 DEBUG: Raw portfolio string from SharedPrefs: $portfolioString');
+    dev.log('🔍 DEBUG: Raw portfolio string from SharedPrefs: $portfolioString');
     
     if (portfolioString != null) {
       try {
         final json = jsonDecode(portfolioString) as Map<String, dynamic>;
-        print('🔍 DEBUG: Parsed portfolio JSON: $json');
+        dev.log('🔍 DEBUG: Parsed portfolio JSON: $json');
         _portfolioNotifier.value = Portfolio.fromJson(json);
-        print('🔍 DEBUG: Portfolio loaded successfully - USDT: ${_portfolioNotifier.value.usdt}');
+        dev.log('🔍 DEBUG: Portfolio loaded successfully - USDT: ${_portfolioNotifier.value.usdt}');
       } catch (e) {
-        print('Error loading portfolio: $e');
+        dev.log('Error loading portfolio: $e');
         await _savePortfolioImmediately(_portfolioNotifier.value);
       }
     } else {
-      print('🔍 DEBUG: No portfolio found in SharedPrefs - creating default');
+      dev.log('🔍 DEBUG: No portfolio found in SharedPrefs - creating default');
       await _savePortfolioImmediately(_portfolioNotifier.value);
     }
   }
@@ -193,7 +194,7 @@ class PrefsStore {
       final jsonString = jsonEncode(portfolioJson);
       await _prefs.setString(_keyPortfolio, jsonString);
     } catch (e) {
-      print('Error saving portfolio: $e');
+      dev.log('Error saving portfolio: $e');
     }
   }
 
@@ -230,7 +231,7 @@ class PrefsStore {
       };
       return jsonEncode(export);
     } catch (e) {
-      print('Error exporting data: $e');
+      dev.log('Error exporting data: $e');
       return '{}';
     }
   }
@@ -277,7 +278,7 @@ class PrefsStore {
       // Save everything
       await flush();
     } catch (e) {
-      print('Error importing data: $e');
+      dev.log('Error importing data: $e');
       throw Exception('Failed to import data: $e');
     }
   }
@@ -350,9 +351,9 @@ class PrefsStore {
       await _saveThemeMode(_themeModeNotifier.value);
       await _tradeHistoryStore.saveToPrefs(_prefs);
       await _watchlistStore.saveToPrefs(_prefs);
-      print('🔍 PREFS: Current state saved to disk');
+      dev.log('🔍 PREFS: Current state saved to disk');
     } catch (e) {
-      print('🔍 PREFS: Failed to save current state: $e');
+      dev.log('🔍 PREFS: Failed to save current state: $e');
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:typed_data';
 import 'package:web3dart/web3dart.dart';
 import 'package:convert/convert.dart';
@@ -66,7 +67,7 @@ class SwapWatcher {
       }
     } catch (e) {
       // Continue polling on error
-      print('SwapWatcher: Error checking status: $e');
+      dev.log('SwapWatcher: Error checking status: $e');
     }
   }
 
@@ -178,12 +179,12 @@ class SwapAdapter {
       // Get current price for the trade record
       final price = amount > 0 ? outputAmount / amount : 0.0;
 
-      print('🔍 SWAP ADAPTER: Executed swap $fromSymbol->$toSymbol, tx: $txHash');
+      dev.log('🔍 SWAP ADAPTER: Executed swap $fromSymbol->$toSymbol, tx: $txHash');
 
       // Sync portfolio after successful swap to reflect new balances
       Future.delayed(const Duration(seconds: 10), () {
         _portfolioAdapter.refreshPortfolio();
-        print('🔍 SWAP ADAPTER: Portfolio synced after swap completion');
+        dev.log('🔍 SWAP ADAPTER: Portfolio synced after swap completion');
       });
 
       return TradeExecResult(
@@ -196,7 +197,7 @@ class SwapAdapter {
         realized: null,
       );
     } catch (e) {
-      print('🔍 SWAP ADAPTER: Swap failed: $e');
+      dev.log('🔍 SWAP ADAPTER: Swap failed: $e');
       
       AppErrorCode errorCode = AppErrorCode.swapFailed;
       if (e is AppError) {
@@ -258,14 +259,14 @@ class SwapAdapter {
       final signedTx = await _walletService.signRawTx(transaction, chainId: _bscChainId);
       final txHash = await _rpcClient.sendRawTransaction('0x$signedTx');
       
-      print('🔍 SWAP ADAPTER: Approve tx sent: $txHash');
+      dev.log('🔍 SWAP ADAPTER: Approve tx sent: $txHash');
       
       // Wait for confirmation (simplified - in production, should poll properly)
       await Future.delayed(const Duration(seconds: 5));
       
       return true;
     } catch (e) {
-      print('🔍 SWAP ADAPTER: Approval failed: $e');
+      dev.log('🔍 SWAP ADAPTER: Approval failed: $e');
       throw AppError.allowanceRequired(tokenAddress, 'DEX Router');
     }
   }

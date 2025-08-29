@@ -6,7 +6,7 @@ import 'ranking_service.dart';
 
 class PollingService {
   final BinanceClient _client = BinanceClient();
-  final RankingService _rankingService = RankingService();
+  final RankingService _rankingService;
   final StreamController<List<Coin>> _coinsController = StreamController<List<Coin>>.broadcast();
   final Map<String, List<double>> _sparklineCache = {};
   final Map<String, DateTime> _sparklineCacheTime = {};
@@ -16,6 +16,8 @@ class PollingService {
   bool _isOffline = false;
   List<Coin> _currentCoins = [];
   Set<String> _watchedPositions = <String>{};
+
+  PollingService({RankingService? rankingService}) : _rankingService = rankingService ?? RankingService();
 
   Stream<List<Coin>> get coinsStream => _coinsController.stream;
   Stream<List<Coin>> get top50Stream => _rankingService.top50Stream;
@@ -27,22 +29,15 @@ class PollingService {
   }
 
   Future<void> start() async {
-    print('🔍 POLLING: Service starting...');
-    
     // Setup stream listener TRƯỚC khi start ranking service
     _rankingService.top50Stream.listen((coins) {
-      print('🔍 POLLING: Received ${coins.length} coins from RankingService');
       _currentCoins = coins;
       _startPolling();
     });
     
-    print('🔍 POLLING: Stream listener setup, starting RankingService...');
-    await _rankingService.start();
-    
     // Kiểm tra nếu đã có data từ cache
     final currentTop50 = _rankingService.currentTop50;
     if (currentTop50.isNotEmpty) {
-      print('🔍 POLLING: Found ${currentTop50.length} cached coins, processing immediately...');
       _currentCoins = currentTop50;
       _startPolling();
     }
@@ -119,16 +114,11 @@ class PollingService {
       }
       
       _currentCoins = updatedCoins;
-      print('🔍 POLLING DEBUG: Loaded ${_currentCoins.length} coins');
-      if (_currentCoins.isNotEmpty) {
-        final sampleCoin = _currentCoins.first;
-        print('   Sample coin: ${sampleCoin.base} = \$${sampleCoin.last}');
-      }
       _coinsController.add(_currentCoins);
       _isOffline = false;
     } catch (e) {
       _isOffline = true;
-      print('Polling error: $e');
+      // TODO: Handle polling error
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import '../core/constants.dart';
 import '../domain/models/coin.dart';
 import 'binance_client.dart';
@@ -10,12 +11,19 @@ class RankingService {
   Timer? _refreshTimer;
   List<Coin> _currentTop50 = [];
   TokenRegistry? _tokenRegistry;
+  bool _isRefreshing = false;
+  DateTime? _lastRefreshAt;
+  static const Duration _minManualRefreshInterval = Duration(seconds: 5);
 
   Stream<List<Coin>> get top50Stream => _rankingController.stream;
   List<Coin> get currentTop50 => List.unmodifiable(_currentTop50);
 
   Future<void> start({TokenRegistry? tokenRegistry}) async {
     _tokenRegistry = tokenRegistry;
+    if (_refreshTimer != null) {
+      dev.log('🔍 RANKING: start() called again — already started');
+      return;
+    }
     await _refreshRanking();
     _refreshTimer = Timer.periodic(
       Duration(minutes: AppConstants.rankingRefreshMinutes),
@@ -24,14 +32,24 @@ class RankingService {
   }
 
   Future<void> refreshManually() async {
+    final now = DateTime.now();
+    if (_lastRefreshAt != null && now.difference(_lastRefreshAt!) < _minManualRefreshInterval) {
+      dev.log('🔍 RANKING: Manual refresh debounced');
+      return;
+    }
     await _refreshRanking();
   }
 
   Future<void> _refreshRanking() async {
+    if (_isRefreshing) {
+      dev.log('🔍 RANKING: Refresh already in progress, skipping');
+      return;
+    }
+    _isRefreshing = true;
     try {
-      print('🔍 RANKING: Starting refresh...');
+      dev.log('🔍 RANKING: Starting refresh...');
       final stats24h = await _client.getAll24hStats();
-      print('🔍 RANKING: Got ${stats24h.length} symbols from Binance');
+      dev.log('🔍 RANKING: Got ${stats24h.length} symbols from Binance');
       
       final validCoins = <Coin>[];
       for (final entry in stats24h.entries) {
@@ -70,23 +88,26 @@ class RankingService {
       validCoins.sort((a, b) => b.quoteVolume.compareTo(a.quoteVolume));
       _currentTop50 = validCoins.take(AppConstants.top50Count).toList();
       
-      print('🔍 RANKING: Processed ${_currentTop50.length} BSC-compatible coins');
+      dev.log('🔍 RANKING: Processed ${_currentTop50.length} BSC-compatible coins');
       if (_currentTop50.isNotEmpty) {
-        print('   Top coin: ${_currentTop50.first.base} vol=${_currentTop50.first.quoteVolume}');
+        dev.log('   Top coin: ${_currentTop50.first.base} vol=${_currentTop50.first.quoteVolume}');
       }
       if (_tokenRegistry != null) {
-        print('🔍 RANKING: Filtered using TokenRegistry (BSC tokens only)');
+        dev.log('🔍 RANKING: Filtered using TokenRegistry (BSC tokens only)');
       }
       
       _rankingController.add(_currentTop50);
-      print('🔍 RANKING: Emitted to stream');
+      dev.log('🔍 RANKING: Emitted to stream');
     } catch (e) {
-      print('Ranking refresh error: $e');
+      dev.log('Ranking refresh error: $e');
       // Emit empty list to unblock polling
       if (_currentTop50.isEmpty) {
-        print('🔍 RANKING: No cached data, emitting empty list');
+        dev.log('🔍 RANKING: No cached data, emitting empty list');
         _rankingController.add([]);
       }
+    } finally {
+      _isRefreshing = false;
+      _lastRefreshAt = DateTime.now();
     }
   }
 
@@ -97,6 +118,7 @@ class RankingService {
 
   void stop() {
     _refreshTimer?.cancel();
+    _refreshTimer = null;
     _rankingController.close();
   }
 }

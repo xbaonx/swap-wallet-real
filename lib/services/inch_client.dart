@@ -1,4 +1,6 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart';
 import '../core/http.dart';
 import '../core/errors.dart';
 import 'models/oneinch_models.dart';
@@ -79,8 +81,10 @@ class InchClient {
         headers: _authHeaders,
       );
 
-      // Debug: Print actual response to understand structure
-      print('🔍 1inch v6 API Response: ${response.data}');
+      // Debug log actual response to understand structure
+      if (kDebugMode) {
+        dev.log('🔍 1inch v6 API Response: ${response.data}');
+      }
       
       if (response.data == null) {
         throw 'API returned null response';
@@ -88,7 +92,7 @@ class InchClient {
 
       return OneInchQuoteResponse.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
-      print('❗ Quote parsing error: $e');
+      dev.log('❗ Quote parsing error: $e');
       throw AppError.networkError('Failed to get quote: $e');
     }
   }

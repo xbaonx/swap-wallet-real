@@ -80,8 +80,8 @@ class _SwapScreenState extends State<SwapScreen> {
 
     switch (_sortType) {
       case SortType.volume:
-        // Sort by price instead since quoteVolume is 0 for 1inch API data
-        _filteredCoins.sort((a, b) => b.last.compareTo(a.last));
+        // Sort by 24h quote volume (descending)
+        _filteredCoins.sort((a, b) => b.quoteVolume.compareTo(a.quoteVolume));
         break;
       case SortType.percent24h:
         _filteredCoins.sort((a, b) => b.pct24h.compareTo(a.pct24h));
@@ -144,6 +144,7 @@ class _SwapScreenState extends State<SwapScreen> {
                         portfolioEngine: widget.portfolioEngine,
                         pollingService: widget.pollingService,
                         prefsStore: widget.prefsStore,
+                        rank: index + 1,
                         isExpanded: false,
                         onTap: () {},
                       );

@@ -1,10 +1,11 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import '../../core/service_locator.dart';
+import '../../core/storage.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/wallet_type_screen.dart';
 import 'screens/create_wallet_screen.dart';
 import 'screens/import_wallet_screen.dart';
-import 'screens/confirm_seed_screen.dart';
 import 'screens/pin_setup_screen.dart';
 import 'screens/biometric_setup_screen.dart';
 import 'screens/onboarding_complete_screen.dart';
@@ -33,6 +34,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   bool _isImporting = false;
   String? _pin;
   bool _biometricEnabled = false;
+  // Prevent duplicate completion
+  bool _isCompleting = false;
 
   @override
   void dispose() {
@@ -41,7 +44,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   }
 
   void _nextPage() {
-    if (_currentPage < 7) {
+    if (_currentPage < 5) {
       setState(() {
         _currentPage++;
       });
@@ -88,19 +91,17 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     setState(() {
       _generatedSeed = seed;
     });
-    _nextPage();
+    _goToPage(3); // Skip confirm seed, go directly to PIN
   }
 
   void _onSeedImported(String seed) {
     setState(() {
       _importedSeed = seed;
     });
-    _goToPage(4); // Skip confirm seed for imports, go to PIN
+    _goToPage(3); // Go directly to PIN
   }
 
-  void _onSeedConfirmed() {
-    _nextPage();
-  }
+  // Removed _onSeedConfirmed - no longer needed
 
   void _onPinSet(String pin) {
     setState(() {
@@ -118,28 +119,88 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   Future<void> _completeOnboarding() async {
     try {
-      final seed = _isImporting ? _importedSeed! : _generatedSeed!;
-      
-      // Create wallet from seed
-      await widget.serviceLocator.walletService.createFromMnemonic(seed);
-      
-      // Persist the wallet
+      if (_isCompleting) {
+        developer.log('Duplicate _completeOnboarding() call suppressed', name: 'onboarding');
+        return;
+      }
+      _isCompleting = true;
+      developer.log('Start complete flow | isImporting=$_isImporting', name: 'onboarding');
+      // If creating a new wallet, derive from generated seed now.
+      if (!_isImporting) {
+        final seed = _generatedSeed;
+        if (seed == null || seed.isEmpty) {
+          throw Exception('Seed phrase is missing.');
+        }
+        developer.log('Creating wallet from generated seed...', name: 'onboarding');
+        await widget.serviceLocator.walletService.createFromMnemonic(seed);
+        developer.log('Wallet created in memory', name: 'onboarding');
+      } else {
+        // Import flow already initialized the wallet in ImportWalletScreen.
+        developer.log('Import flow detected, wallet already initialized', name: 'onboarding');
+      }
+
+      // Persist the wallet for both create and import flows
+      developer.log('Persisting wallet to secure storage...', name: 'onboarding');
       await widget.serviceLocator.walletService.persist();
-      
-      // Set PIN if provided
-      if (_pin != null) {
-        // TODO: Store PIN securely
+      developer.log('Wallet persisted', name: 'onboarding');
+
+      // Store mnemonic securely if available (do NOT log mnemonic content)
+      try {
+        final seedToStore = !_isImporting ? _generatedSeed : _importedSeed;
+        if (seedToStore != null && seedToStore.isNotEmpty) {
+          developer.log('Storing mnemonic securely (content hidden)', name: 'onboarding');
+          await SecureStorage.storeMnemonic(seedToStore);
+        } else {
+          developer.log('No mnemonic to store (imported via private key or missing)', name: 'onboarding');
+        }
+      } catch (e) {
+        // Non-fatal: mnemonic storage failure should not block onboarding, but notify user lightly
+        developer.log('Failed to store mnemonic securely: $e', name: 'onboarding');
       }
       
-      // Set biometric preference
-      if (_biometricEnabled) {
-        // TODO: Enable biometric authentication
+      // Clear in-memory sensitive data ASAP
+      _generatedSeed = null;
+      _importedSeed = null;
+      // Trigger a one-time portfolio sync after wallet is ready (defer to next frame)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          developer.log('Trigger portfolio sync', name: 'onboarding');
+          widget.serviceLocator.portfolioAdapter.syncWithBlockchain();
+          developer.log('Portfolio sync triggered', name: 'onboarding');
+        } catch (_) {
+          // Non-fatal: ignore portfolio sync errors here
+          developer.log('Portfolio sync threw non-fatal error', name: 'onboarding');
+        }
+      });
+
+      // Store PIN if provided (non-empty)
+      if (_pin != null && _pin!.isNotEmpty) {
+        developer.log('Storing PIN hash', name: 'onboarding');
+        await SecureStorage.storePinHash(_pin!);
       }
       
+      // Clear in-memory PIN as soon as it has been persisted
+      _pin = null;
+      // Store biometric preference
+      developer.log('Setting biometric enabled = $_biometricEnabled', name: 'onboarding');
+      await SecureStorage.setBiometricEnabled(_biometricEnabled);
+
       // Call completion callback to return to main app
+      developer.log('Calling onComplete callback', name: 'onboarding');
       widget.onComplete();
+      developer.log('Complete flow done', name: 'onboarding');
     } catch (e) {
-      print('Error completing onboarding: $e');
+      developer.log('FAILED -> $e', name: 'onboarding');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Onboarding failed: $e')),
+        );
+      } else {
+        developer.log('Unable to show SnackBar because widget is not mounted', name: 'onboarding');
+      }
+      rethrow;
+    } finally {
+      _isCompleting = false;
     }
   }
 
@@ -176,30 +237,20 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               onBack: _previousPage,
             ),
           
-          // 3: Confirm Seed (only for new wallets)
-          if (!_isImporting && _generatedSeed != null)
-            ConfirmSeedScreen(
-              seedPhrase: _generatedSeed!,
-              onSeedConfirmed: _onSeedConfirmed,
-              onBack: _previousPage,
-            )
-          else
-            Container(), // Placeholder for imports
-          
-          // 4: PIN Setup
+          // 3: PIN Setup
           PinSetupScreen(
             onPinSet: _onPinSet,
             onSkip: () => _onPinSet(''), // Empty PIN = skip
             onBack: _previousPage,
           ),
           
-          // 5: Biometric Setup
+          // 4: Biometric Setup
           BiometricSetupScreen(
             onBiometricSetup: _onBiometricSetup,
             onBack: _previousPage,
           ),
           
-          // 6: Complete
+          // 5: Complete
           OnboardingCompleteScreen(
             isImporting: _isImporting,
             onComplete: _completeOnboarding,

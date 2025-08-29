@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui' show FontFeature;
+import 'dart:developer' as dev;
 import '../../../core/service_locator.dart';
 
 class CreateWalletScreen extends StatefulWidget {
@@ -36,6 +38,9 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       setState(() {
         _generatedSeed = seed;
       });
+      // Debug-only: log seed metadata (do NOT log actual words)
+      final wc = seed.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+      dev.log('Seed generated: $wc words', name: 'onboarding.ui');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error generating seed: $e')),
@@ -79,181 +84,201 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 16),
-              
-              Text(
-                'Backup Your Wallet',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              Text(
-                'Write down or copy these 12 words in the exact order shown. This is your recovery phrase.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey[600],
-                ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Seed Phrase Display
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!_isRevealed) ...[
-                      const Icon(
-                        Icons.visibility_off,
-                        size: 48,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Tap to reveal your seed phrase',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
+                    // Top content
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 16),
+                        Text(
+                          'Backup Your Wallet',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _revealSeed,
-                        icon: const Icon(Icons.visibility),
-                        label: const Text('Reveal Seed Phrase'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
+                        const SizedBox(height: 16),
+                        Text(
+                          'Write down or copy these 12 words in the exact order shown. This is your recovery phrase.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              ),
                         ),
-                      ),
-                    ] else ...[
-                      _buildSeedPhraseGrid(),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _copySeed,
-                              icon: Icon(_isCopied ? Icons.check : Icons.copy),
-                              label: Text(_isCopied ? 'Copied!' : 'Copy'),
-                            ),
+                        const SizedBox(height: 32),
+                        // Seed Phrase Display
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceVariant,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Theme.of(context).dividerColor),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _generateSeed,
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('New Phrase'),
-                            ),
+                          child: Column(
+                            children: [
+                              if (!_isRevealed) ...[
+                                Icon(
+                                  Icons.visibility_off,
+                                  size: 48,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Tap to reveal your seed phrase',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                      ),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton.icon(
+                                  onPressed: _revealSeed,
+                                  icon: const Icon(Icons.visibility),
+                                  label: const Text('Reveal Seed Phrase'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                ),
+                              ] else ...[
+                                if (_generatedSeed == null) ...[
+                                  const SizedBox(height: 8),
+                                  const Center(child: CircularProgressIndicator()),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Đang tạo seed phrase...',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                        ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ] else ...[
+                                  _buildSeedSection(),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: _copySeed,
+                                          icon: Icon(_isCopied ? Icons.check : Icons.copy),
+                                          label: Text(_isCopied ? 'Copied!' : 'Copy'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          onPressed: _generateSeed,
+                                          icon: const Icon(Icons.refresh),
+                                          label: const Text('New Phrase'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ],
                           ),
+                        ),
+                        const SizedBox(height: 32),
+                        // Security Warning
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.warning,
+                                color: Colors.red[700],
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Important Security Notice',
+                                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.red[700],
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Never share your seed phrase with anyone. Store it safely offline. Anyone with this phrase can access your wallet.',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                            color: Colors.red[700],
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Bottom area
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_isRevealed) ...[
+                          CheckboxListTile(
+                            value: _hasConfirmedBackup,
+                            onChanged: (value) {
+                              setState(() {
+                                _hasConfirmedBackup = value ?? false;
+                              });
+                            },
+                            title: Text(
+                              'I have safely backed up my seed phrase',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          const SizedBox(height: 16),
                         ],
-                      ),
-                    ],
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: (_isRevealed && _hasConfirmedBackup) ? _continue : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'Continue',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              
-              const SizedBox(height: 32),
-              
-              // Security Warning
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning,
-                      color: Colors.red[700],
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Important Security Notice',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.red[700],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Never share your seed phrase with anyone. Store it safely offline. Anyone with this phrase can access your wallet.',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.red[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const Spacer(),
-              
-              // Confirmation Checkbox
-              if (_isRevealed) ...[
-                CheckboxListTile(
-                  value: _hasConfirmedBackup,
-                  onChanged: (value) {
-                    setState(() {
-                      _hasConfirmedBackup = value ?? false;
-                    });
-                  },
-                  title: Text(
-                    'I have safely backed up my seed phrase',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                
-                const SizedBox(height: 16),
-              ],
-              
-              // Continue Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: (_isRevealed && _hasConfirmedBackup) ? _continue : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -262,42 +287,148 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
   Widget _buildSeedPhraseGrid() {
     if (_generatedSeed == null) return Container();
     
-    final words = _generatedSeed!.split(' ');
-    
+    final words = _generatedSeed!
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    // Fixed 3 columns for tidy layout (very small screens still fall back to list)
+    const tileAspect = 1.5; // width / height (taller tiles for readability)
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
-        childAspectRatio: 2.5,
+        childAspectRatio: tileAspect,
       ),
       itemCount: words.length,
       itemBuilder: (context, index) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
+          constraints: const BoxConstraints(minHeight: 56),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 '${index + 1}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[500],
-                  fontSize: 10,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  fontSize: 9,
                 ),
               ),
-              Text(
-                words[index],
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  words[index],
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.visible,
+                  softWrap: false,
                 ),
-                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _buildNumberedSeedLine() {
+    if (_generatedSeed == null) return '';
+    final words = _generatedSeed!
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    final numbered = List.generate(words.length, (i) => '${i + 1}. ${words[i]}');
+    return numbered.join('   ');
+  }
+
+  Widget _buildSeedSection() {
+    final width = MediaQuery.of(context).size.width;
+    // On very small screens, show a vertical list to guarantee readability
+    if (width < 340) {
+      return _buildSeedList();
+    }
+
+    return Column(
+      children: [
+        _buildSeedPhraseGrid(),
+        const SizedBox(height: 8),
+        // Additionally show a selectable one-line fallback
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Theme.of(context).dividerColor),
+          ),
+          child: SelectableText(
+            _buildNumberedSeedLine(),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSeedList() {
+    final words = _generatedSeed!
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: words.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Theme.of(context).dividerColor),
+          ),
+          child: Row(
+            children: [
+              Text(
+                '${index + 1}'.padLeft(2, '0'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.65),
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  words[index],
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
               ),
             ],
           ),

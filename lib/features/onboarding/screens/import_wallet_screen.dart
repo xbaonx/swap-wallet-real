@@ -64,6 +64,9 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
           throw Exception('Invalid seed phrase');
         }
         
+        // ACTUALLY IMPORT the wallet from mnemonic
+        await widget.serviceLocator.walletService.importFromMnemonic(seedText);
+        
         seed = seedText;
       } else {
         // Import from private key
@@ -82,8 +85,11 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
           throw Exception('Invalid private key format');
         }
         
-        // Generate seed from private key for storage consistency
-        seed = await widget.serviceLocator.walletService.generateMnemonic();
+        // ACTUALLY IMPORT the wallet from private key
+        await widget.serviceLocator.walletService.importFromPrivateKey('0x$cleanKey');
+        
+        // Do not fabricate a mnemonic for private key imports
+        seed = '';
       }
 
       widget.onSeedImported(seed);
@@ -115,29 +121,29 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
               
-              Text(
-                'Restore Your Wallet',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+                Text(
+                  'Restore Your Wallet',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
               
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
               
-              Text(
-                'Enter your seed phrase or private key to restore your existing wallet',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey[600],
+                Text(
+                  'Enter your seed phrase or private key to restore your existing wallet',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.grey[600],
+                  ),
                 ),
-              ),
               
-              const SizedBox(height: 32),
+                const SizedBox(height: 32),
               
-              // Import Type Toggle
-              Container(
+                // Import Type Toggle
+                Container(
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(12),
@@ -186,47 +192,47 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                     ),
                   ],
                 ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Input Field
-              if (_isSeedImport) ...[
-                TextField(
-                  controller: _seedController,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: 'Seed Phrase',
-                    hintText: 'Enter your 12 or 24 word seed phrase',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    errorText: _errorMessage,
-                  ),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _importWallet(),
                 ),
-              ] else ...[
-                TextField(
-                  controller: _privateKeyController,
-                  decoration: InputDecoration(
-                    labelText: 'Private Key',
-                    hintText: 'Enter your private key (with or without 0x prefix)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+              
+                const SizedBox(height: 32),
+              
+                // Input Field
+                if (_isSeedImport) ...[
+                  TextField(
+                    controller: _seedController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      labelText: 'Seed Phrase',
+                      hintText: 'Enter your 12 or 24 word seed phrase',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      errorText: _errorMessage,
                     ),
-                    errorText: _errorMessage,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _importWallet(),
                   ),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _importWallet(),
-                  obscureText: true,
-                ),
-              ],
+                ] else ...[
+                  TextField(
+                    controller: _privateKeyController,
+                    decoration: InputDecoration(
+                      labelText: 'Private Key',
+                      hintText: 'Enter your private key (with or without 0x prefix)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      errorText: _errorMessage,
+                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _importWallet(),
+                    obscureText: true,
+                  ),
+                ],
               
-              const SizedBox(height: 32),
+                const SizedBox(height: 32),
               
-              // Security Warning
-              Container(
+                // Security Warning
+                Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.amber.withOpacity(0.1),
@@ -264,43 +270,44 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                     ),
                   ],
                 ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Import Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isValidating ? null : _importWallet,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isValidating
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Import Wallet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                 ),
-              ),
-            ],
+              
+                const SizedBox(height: 32),
+              
+                // Import Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isValidating ? null : _importWallet,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isValidating
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Import Wallet',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,7 +1,10 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'core/theme.dart';
 import 'core/lifecycle.dart';
 import 'core/service_locator.dart';
+import 'core/storage.dart';
+import 'core/lock_screen.dart';
 import 'features/portfolio/portfolio_screen.dart';
 import 'features/swap/swap_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -24,31 +27,26 @@ class CryptoSwapApp extends StatefulWidget {
   State<CryptoSwapApp> createState() => _CryptoSwapAppState();
 }
 
-class _CryptoSwapAppState extends State<CryptoSwapApp> {
+class _CryptoSwapAppState extends State<CryptoSwapApp> with WidgetsBindingObserver {
   int _selectedIndex = 0;
-  bool _needsOnboarding = false;
+  bool _needsOnboarding = true; // Default to true, will be updated in initState
+  bool _wasBackground = false;
+  bool _isLockShowing = false;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
     _checkWalletStatus();
     _selectedIndex = widget.prefsStore.getLastSelectedTab();
+    WidgetsBinding.instance.addObserver(this);
     
-    // Debug: Check loaded portfolio
     final loadedPortfolio = widget.prefsStore.portfolio.value;
-    print('🔍 DEBUG: Loaded portfolio from PrefsStore:');
-    print('   USDT: ${loadedPortfolio.usdt}');
-    print('   Positions: ${loadedPortfolio.positions}');
     
-    // ⚠️ QUAN TRỌNG: Set portfolio in adapter TRƯỚC khi setup streams
+    // Set portfolio in adapter before setting up streams
     widget.serviceLocator.portfolioAdapter.setPortfolio(loadedPortfolio);
     
-    // Debug: Check adapter state after setting
-    print('🔍 DEBUG: Adapter portfolio after setPortfolio:');
-    print('   USDT: ${widget.serviceLocator.portfolioAdapter.currentPortfolio.usdt}');
-    print('   Positions: ${widget.serviceLocator.portfolioAdapter.currentPortfolio.positions}');
-    
-    // Setup streams SAU KHI đã set portfolio
+    // Setup streams after portfolio is set
     _setupPortfolioSync();
     
     // Start Binance services for charts and indicators
@@ -58,22 +56,97 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
     
     // Start 1inch price adapter for swap functionality (optional, used for swap screen hardcoded tokens)
     // widget.serviceLocator.pricesAdapter.start();
+
+    // Yêu cầu khoá ngay khi khởi động nếu đã có thiết lập bảo mật (không áp dụng trong Onboarding)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeRequireInitialLock());
+  }
+
+  void _onSignOut() {
+    developer.log('Sign out callback received → switching to onboarding', name: 'app');
+    // Reset UI state and show onboarding again
+    setState(() {
+      _needsOnboarding = true;
+      _selectedIndex = 0;
+    });
+    // Ensure no lock screen is being shown
+    _isLockShowing = false;
   }
 
   void _checkWalletStatus() {
     // Check if wallet exists
-    _needsOnboarding = !widget.serviceLocator.walletService.isInitialized;
-    print('🔍 DEBUG: Needs onboarding: $_needsOnboarding');
+    final needsOnboarding = !widget.serviceLocator.walletService.isInitialized;
+    setState(() {
+      _needsOnboarding = needsOnboarding;
+    });
+    developer.log('Wallet status checked: needsOnboarding=$_needsOnboarding', name: 'app');
   }
 
   void _setupPortfolioSync() {
     widget.serviceLocator.portfolioAdapter.portfolioStream.listen((portfolio) {
       widget.prefsStore.savePortfolio(portfolio);
+      developer.log('Portfolio stream update saved to prefs', name: 'app');
     });
 
     widget.prefsStore.portfolio.addListener(() {
       widget.serviceLocator.portfolioAdapter.setPortfolio(widget.prefsStore.portfolio.value);
+      developer.log('Prefs portfolio changed -> propagated to adapter', name: 'app');
     });
+  }
+
+  Future<void> _maybeRequireInitialLock() async {
+    if (!mounted || _needsOnboarding) return;
+    await _maybeRequireLock(reason: 'Xác thực để tiếp tục');
+  }
+
+  Future<void> _maybeRequireLock({required String reason}) async {
+    if (!mounted || _isLockShowing) return;
+    try {
+      final hasPin = await SecureStorage.hasPinSet();
+      final bio = await SecureStorage.isBiometricEnabled();
+      if (!(hasPin || bio)) {
+        return; // Không có cấu hình bảo mật → không khoá
+      }
+      if (!mounted) return;
+      _isLockShowing = true;
+      developer.log('Presenting LockScreen', name: 'app');
+      final nav = _navigatorKey.currentState;
+      if (nav != null) {
+        await nav.push<bool>(
+          MaterialPageRoute(
+            builder: (_) => LockScreen(reason: reason),
+            fullscreenDialog: true,
+          ),
+        );
+      } else {
+        developer.log('Navigator key not ready; skipping LockScreen', name: 'app');
+      }
+    } catch (e) {
+      developer.log('Error showing LockScreen: $e', name: 'app');
+    } finally {
+      _isLockShowing = false;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.resumed:
+        developer.log('App resumed (wasBackground=$_wasBackground)', name: 'app');
+        if (_wasBackground && !_needsOnboarding) {
+          _wasBackground = false;
+          _maybeRequireLock(reason: 'Xác thực để tiếp tục');
+        }
+        break;
+      case AppLifecycleState.paused:
+        developer.log('App paused → will require auth on resume', name: 'app');
+        _wasBackground = true;
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        break;
+    }
   }
 
   void _onItemTapped(int index) {
@@ -83,10 +156,31 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
     widget.prefsStore.setLastSelectedTab(index);
   }
 
-  void _onOnboardingComplete() {
+  void _onOnboardingComplete() async {
+    // Reload wallet service to ensure fresh address
+    try {
+      developer.log('Onboarding complete callback: reloading wallet...', name: 'app');
+      await widget.serviceLocator.walletService.load();
+      developer.log('Wallet reloaded', name: 'app');
+    } catch (e) {
+      // Failed to reload wallet
+      developer.log('Wallet reload failed after onboarding: $e', name: 'app');
+    }
+    
     setState(() {
       _needsOnboarding = false;
     });
+    developer.log('Set _needsOnboarding=false and returning to main UI', name: 'app');
+    
+    // Auto-sync portfolio with blockchain after wallet creation
+    try {
+      developer.log('Triggering portfolio refresh after onboarding', name: 'app');
+      await widget.serviceLocator.portfolioAdapter.refreshPortfolio();
+      developer.log('Portfolio refresh completed', name: 'app');
+    } catch (e) {
+      // Portfolio auto-sync failed
+      developer.log('Portfolio refresh failed after onboarding: $e', name: 'app');
+    }
   }
 
   @override
@@ -99,6 +193,7 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
+          navigatorKey: _navigatorKey,
           home: _needsOnboarding
               ? OnboardingFlow(
                   serviceLocator: widget.serviceLocator,
@@ -120,6 +215,8 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
                       ),
                       SettingsScreen(
                         serviceLocator: widget.serviceLocator,
+                        prefsStore: widget.prefsStore,
+                        onSignOut: _onSignOut,
                       ),
                     ],
                   ),
@@ -151,6 +248,7 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.serviceLocator.dispose();
     super.dispose();
   }

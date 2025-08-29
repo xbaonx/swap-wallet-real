@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:developer' as dev;
 import 'package:web3dart/web3dart.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -119,7 +120,7 @@ class RpcClient implements IRpcClient {
       
       // Switch to fallback if we've had too many consecutive failures
       if (!_usingFallback && _consecutiveFailures >= _maxConsecutiveFailures) {
-        print('RPC_SWITCHED: Switching from Primary to Fallback after $_consecutiveFailures failures');
+        dev.log('RPC_SWITCHED: Switching from Primary to Fallback after $_consecutiveFailures failures');
         _usingFallback = true;
         _consecutiveFailures = 0;
         

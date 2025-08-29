@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/inch_client.dart';
@@ -62,8 +63,8 @@ class ServiceLocator {
     await _tokenRegistry.initialize();
 
     // Initialize Binance services (for charts and indicators)  
-    _pollingService = PollingService();
     _rankingService = RankingService();
+    _pollingService = PollingService(rankingService: _rankingService);
 
     // Initialize 1inch adapters (for swap functionality)
     _pricesAdapter = PricesAdapter(
@@ -86,7 +87,7 @@ class ServiceLocator {
     );
 
     _isInitialized = true;
-    print('🔍 SERVICE LOCATOR: All services initialized');
+    developer.log('All services initialized', name: 'locator');
   }
 
   /// Load wallet if exists and start portfolio sync
@@ -94,12 +95,12 @@ class ServiceLocator {
     try {
       await _walletService.load();
       if (_walletService.isInitialized) {
-        print('🔍 SERVICE LOCATOR: Wallet loaded, syncing portfolio once');
+        developer.log('Wallet loaded, syncing portfolio once', name: 'locator');
         // Sync once on wallet load, but don't start automatic periodic sync
         _portfolioAdapter.syncWithBlockchain();
       }
     } catch (e) {
-      print('🔍 SERVICE LOCATOR: No wallet found or load failed: $e');
+      developer.log('No wallet found or load failed: $e', name: 'locator');
     }
   }
 
@@ -140,8 +141,8 @@ class ServiceLocator {
     );
 
     // Initialize Binance services
-    _pollingService = PollingService();
     _rankingService = RankingService();
+    _pollingService = PollingService(rankingService: _rankingService);
 
     // Initialize 1inch adapters
     _pricesAdapter = PricesAdapter(

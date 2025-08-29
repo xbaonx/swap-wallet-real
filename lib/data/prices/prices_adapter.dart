@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:developer' as dev;
 import '../../core/constants.dart';
 import '../../domain/models/coin.dart';
 import '../../services/inch_client.dart';
@@ -90,7 +91,7 @@ class PricesAdapter extends PollingService {
     // Skip warmup as TokenRegistry doesn't have this method
 
     final usdtAddr = _tokenRegistry.getTokenAddress('USDT');
-    print('🧪 USDT address at start: ${usdtAddr ?? 'NULL'}');
+    dev.log('🧪 USDT address at start: ${usdtAddr ?? 'NULL'}');
 
     await _updateRanking(); // bắt buộc await để không emit rỗng trước
 
@@ -99,7 +100,7 @@ class PricesAdapter extends PollingService {
 
     Timer.periodic(_rankingUpdateInterval, (_) => _updateRanking());
 
-    print('✅ PRICES ADAPTER: Started with ${_currentTop50.length} tokens');
+    dev.log('✅ PRICES ADAPTER: Started with ${_currentTop50.length} tokens');
   }
 
   /// Check if we should skip requests due to rate limiting
@@ -138,7 +139,7 @@ class PricesAdapter extends PollingService {
   void _handleRateLimit() {
     _lastRateLimitTime = DateTime.now();
     _consecutiveRateLimits++;
-    print('⚠️ Rate limit hit. Consecutive: $_consecutiveRateLimits, entering cooldown for ${_rateLimitCooldown.inMinutes} minutes');
+    dev.log('⚠️ Rate limit hit. Consecutive: $_consecutiveRateLimits, entering cooldown for ${_rateLimitCooldown.inMinutes} minutes');
   }
   
   /// Track successful request
@@ -146,7 +147,7 @@ class PricesAdapter extends PollingService {
     _requestsInLastMinute++;
     // Reset consecutive rate limits on successful request
     if (_consecutiveRateLimits > 0) {
-      print('✅ Rate limit recovered after $_consecutiveRateLimits failures');
+      dev.log('✅ Rate limit recovered after $_consecutiveRateLimits failures');
       _consecutiveRateLimits = 0;
     }
   }
@@ -168,7 +169,7 @@ class PricesAdapter extends PollingService {
       try {
         if (attempt > 0) {
           final delay = _calculateBackoffDelay(attempt);
-          print('🔄 Retry attempt $attempt after ${delay.inMilliseconds}ms delay');
+          dev.log('🔄 Retry attempt $attempt after ${delay.inMilliseconds}ms delay');
           await Future.delayed(delay);
         }
         
@@ -191,7 +192,7 @@ class PricesAdapter extends PollingService {
         }
         
         // For other errors, continue with retries
-        print('⚠️ Quote attempt $attempt failed: $e');
+        dev.log('⚠️ Quote attempt $attempt failed: $e');
         
         // Don't retry on timeout or null response errors
         if (e.toString().contains('TimeoutException') || 
@@ -207,7 +208,7 @@ class PricesAdapter extends PollingService {
 
   void _emitFallbackAndMarkOffline() {
     _isOffline = true;
-    print('🔍 PRICES ADAPTER: Network error, no fallback data - using Binance for prices');
+    dev.log('🔍 PRICES ADAPTER: Network error, no fallback data - using Binance for prices');
     // No hardcoded fallback - let Binance handle price display
     _currentTop50 = [];
     _currentCoins = [];
@@ -220,7 +221,7 @@ class PricesAdapter extends PollingService {
     
     // This adapter is no longer used for price display - Binance handles that
     // Only maintain minimal functionality for swap operations if needed
-    print('🔍 PRICES ADAPTER: Ranking update skipped - using Binance for price data');
+    dev.log('🔍 PRICES ADAPTER: Ranking update skipped - using Binance for price data');
   }
 
   Future<void> _updatePrices() async {
@@ -262,7 +263,7 @@ class PricesAdapter extends PollingService {
           
           // Add null safety checks
           if (quote.toTokenAmount.isEmpty) {
-            print('⚠️ Empty price response for $symbol');
+            dev.log('⚠️ Empty price response for $symbol');
             continue;
           }
           

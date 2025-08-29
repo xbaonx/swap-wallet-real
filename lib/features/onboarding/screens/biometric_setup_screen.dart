@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 
 class BiometricSetupScreen extends StatefulWidget {
   final Function(bool enabled) onBiometricSetup;
@@ -15,7 +16,38 @@ class BiometricSetupScreen extends StatefulWidget {
 }
 
 class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
-  bool _isBiometricAvailable = true; // In real app, check device capabilities
+  final LocalAuthentication _auth = LocalAuthentication();
+  bool _isBiometricAvailable = false;
+  bool _isChecking = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricAvailability();
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    try {
+      final supported = await _auth.isDeviceSupported();
+      final canCheck = await _auth.canCheckBiometrics;
+      final types = await _auth.getAvailableBiometrics();
+      final available = supported && canCheck && types.isNotEmpty;
+      if (!mounted) return;
+      setState(() {
+        _isBiometricAvailable = available;
+        _isChecking = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isBiometricAvailable = false;
+        _isChecking = false;
+        _error = e.toString();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,8 +128,13 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               ),
               
               const Spacer(),
+              if (_isChecking) ...[
+                const SizedBox(height: 8),
+                const CircularProgressIndicator(strokeWidth: 2),
+                const SizedBox(height: 24),
+              ],
               
-              if (!_isBiometricAvailable) ...[
+              if (!_isBiometricAvailable && !_isChecking) ...[
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -115,7 +152,9 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Biometric authentication is not available on this device',
+                          _error == null
+                              ? 'Biometric authentication is not available on this device'
+                              : 'Biometric check failed: \n$_error',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.orange[700],
                           ),
@@ -132,7 +171,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _isBiometricAvailable 
+                  onPressed: (!_isChecking && _isBiometricAvailable) 
                       ? () => widget.onBiometricSetup(true)
                       : null,
                   style: ElevatedButton.styleFrom(

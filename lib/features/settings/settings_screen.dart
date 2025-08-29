@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:developer' as dev;
 import '../../core/service_locator.dart';
 import '../../data/settings/settings_service.dart';
 import '../../core/storage.dart';
+import '../../core/auth_guard.dart';
+import '../../storage/prefs_store.dart';
+import '../onboarding/screens/pin_setup_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final ServiceLocator serviceLocator;
+  final PrefsStore prefsStore;
+  final VoidCallback onSignOut;
 
   const SettingsScreen({
     super.key,
     required this.serviceLocator,
+    required this.prefsStore,
+    required this.onSignOut,
   });
 
   @override
@@ -25,6 +33,144 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _settingsService = SettingsService(widget.serviceLocator.prefs);
   }
 
+  Widget _buildAppearanceSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Appearance',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<ThemeMode>(
+              valueListenable: widget.prefsStore.themeMode,
+              builder: (context, mode, _) {
+                return ListTile(
+                  leading: const Icon(Icons.brightness_6),
+                  title: const Text('Theme'),
+                  subtitle: Text(_themeLabel(mode)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _selectThemeMode,
+                  contentPadding: EdgeInsets.zero,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _authenticateUser({required String reason}) async {
+    return AuthGuard.requireAuth(context, reason: reason);
+  }
+
+  Future<void> _showSensitiveDialog({
+    required String title,
+    required String value,
+    required bool isSeed,
+  }) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('⚠️ Tuyệt đối không chia sẻ thông tin này với bất kỳ ai.'),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: SelectableText(
+                value,
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
+            ),
+            if (isSeed)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text('Gợi ý: Hãy ghi lại seed phrase ra giấy và cất giữ an toàn.'),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _copyToClipboard(value);
+              Navigator.pop(context);
+            },
+            child: const Text('Sao chép & Đóng'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  
+
+  String _themeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.dark:
+        return 'Dark';
+      case ThemeMode.system:
+        return 'System';
+    }
+  }
+
+  void _selectThemeMode() {
+    showDialog(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Select Theme'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () {
+              widget.prefsStore.setThemeMode(ThemeMode.system);
+              Navigator.pop(context);
+              setState(() {});
+            },
+            child: const Text('System'),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              widget.prefsStore.setThemeMode(ThemeMode.light);
+              Navigator.pop(context);
+              setState(() {});
+            },
+            child: const Text('Light'),
+          ),
+          SimpleDialogOption(
+            onPressed: () {
+              widget.prefsStore.setThemeMode(ThemeMode.dark);
+              Navigator.pop(context);
+              setState(() {});
+            },
+            child: const Text('Dark'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,6 +184,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildWalletSection(),
           const SizedBox(height: 24),
           _buildSecuritySection(),
+          const SizedBox(height: 24),
+          _buildAppearanceSection(),
           const SizedBox(height: 24),
           _buildNetworkSection(),
           const SizedBox(height: 24),
@@ -92,7 +240,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: const Text('Backup Seed Phrase'),
               subtitle: const Text('View your recovery phrase'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: _showBackupSeed,
+              onTap: () => _showBackupSeed(),
               contentPadding: EdgeInsets.zero,
             ),
             
@@ -102,7 +250,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: const Text('Export Private Key'),
               subtitle: const Text('Export wallet private key'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: _exportPrivateKey,
+              onTap: () => _exportPrivateKey(),
+              contentPadding: EdgeInsets.zero,
+            ),
+
+            // Sign out & remove wallet
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Đăng xuất & Xóa ví', style: TextStyle(color: Colors.red)),
+              subtitle: const Text('Xóa ví, PIN và sinh trắc học khỏi thiết bị này'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _signOut,
               contentPadding: EdgeInsets.zero,
             ),
           ],
@@ -261,10 +419,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 16),
             
             // App Version
-            ListTile(
-              leading: const Icon(Icons.info),
-              title: const Text('App Version'),
-              subtitle: const Text('1.0.0'),
+            const ListTile(
+              leading: Icon(Icons.info),
+              title: Text('App Version'),
+              subtitle: Text('1.0.0'),
               contentPadding: EdgeInsets.zero,
             ),
             
@@ -312,60 +470,212 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showBackupSeed() {
-    // TODO: Show backup seed with authentication
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Backup Seed Phrase'),
-        content: const Text('This feature requires wallet authentication.\n\nIn a real app, this would show your 12-word recovery phrase after PIN/biometric verification.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+  Future<void> _showBackupSeed() async {
+    dev.log('Request to show backup seed', name: 'settings');
+    final authed = await _authenticateUser(reason: 'Xác thực để xem Seed Phrase');
+    if (!authed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Xác thực thất bại')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final mnemonic = await SecureStorage.getMnemonic();
+      if (mnemonic == null || mnemonic.isEmpty) {
+        if (!mounted) return;
+        await showDialog(
+          context: context,
+          builder: (context) => const AlertDialog(
+            title: Text('Backup Seed Phrase'),
+            content: Text('Không tìm thấy seed phrase. Ví có thể đã được nhập bằng private key hoặc bạn chưa lưu seed phrase.'),
           ),
-        ],
-      ),
-    );
+        );
+        return;
+      }
+
+      await _showSensitiveDialog(
+        title: 'Backup Seed Phrase',
+        value: mnemonic,
+        isSeed: true,
+      );
+    } catch (e) {
+      dev.log('Failed to get mnemonic: $e', name: 'settings');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể lấy seed phrase')),
+        );
+      }
+    }
   }
 
-  void _exportPrivateKey() {
-    // TODO: Export private key with authentication
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Export Private Key'),
-        content: const Text('⚠️ Warning: Never share your private key!\n\nThis feature requires PIN/biometric authentication.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // In real app, would show private key after auth
+  Future<void> _exportPrivateKey() async {
+    dev.log('Request to export private key', name: 'settings');
+    final wallet = widget.serviceLocator.walletService;
+    if (!wallet.isInitialized) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Wallet chưa khởi tạo')),
+        );
+      }
+      return;
+    }
+
+    final authed = await _authenticateUser(reason: 'Xác thực để xuất Private Key');
+    if (!authed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Xác thực thất bại')),
+        );
+      }
+      return;
+    }
+
+    try {
+      if (wallet.isLocked) {
+        await wallet.unlock();
+      }
+      final pk = await wallet.exportPrivateKey();
+      await _showSensitiveDialog(
+        title: 'Private Key',
+        value: pk,
+        isSeed: false,
+      );
+    } catch (e) {
+      dev.log('Failed to export private key: $e', name: 'settings');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể xuất Private Key')),
+        );
+      }
+    }
+  }
+
+  Future<void> _changePIN() async {
+    try {
+      final hasPin = await SecureStorage.hasPinSet();
+      if (hasPin) {
+        // Require current auth (biometric or PIN) before allowing change
+        if (!mounted) return;
+        final authed = await AuthGuard.requireAuth(
+          context,
+          reason: 'Xác thực để thay đổi PIN',
+        );
+        if (!authed) return;
+      }
+
+      // Dùng PinSetupScreen để nhập & xác nhận PIN mới (UI thống nhất với onboarding)
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (ctx) => PinSetupScreen(
+            title: 'Đặt PIN mới',
+            showSkip: false,
+            onBack: () => Navigator.pop(ctx),
+            onSkip: () {},
+            onPinSet: (pin) async {
+              try {
+                await SecureStorage.storePinHash(pin);
+                if (!mounted) return;
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cập nhật PIN thành công')),
+                );
+              } catch (e) {
+                dev.log('Store new PIN error: $e', name: 'settings');
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Không thể cập nhật PIN')),
+                );
+              }
             },
-            child: const Text('Export'),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _changePIN() {
-    // TODO: Implement PIN change flow
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('PIN management not implemented yet')),
-    );
+        ),
+      );
+    } catch (e) {
+      dev.log('Change PIN error: $e', name: 'settings');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể cập nhật PIN')),
+      );
+    }
   }
 
   void _toggleBiometric(bool enabled) async {
-    await SecureStorage.setBiometricEnabled(enabled);
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(enabled ? 'Biometric enabled' : 'Biometric disabled')),
-    );
+    try {
+      if (enabled) {
+        final available = await AuthGuard.isBiometricAvailable();
+        if (!available) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Thiết bị không hỗ trợ hoặc chưa đăng ký sinh trắc học')),
+          );
+          setState(() {});
+          return;
+        }
+
+        // Yêu cầu đặt PIN trước khi bật sinh trắc học
+        final hasPin = await SecureStorage.hasPinSet();
+        if (!hasPin) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Vui lòng đặt PIN trước khi bật sinh trắc học')),
+          );
+          await _changePIN();
+          final recheck = await SecureStorage.hasPinSet();
+          if (!recheck) {
+            setState(() {});
+            return;
+          }
+        }
+
+        // Xác thực sinh trắc học để bật
+        final didAuth = await AuthGuard.authenticateBiometricOnly(
+          reason: 'Xác thực để bật mở khóa sinh trắc học',
+        );
+        if (!didAuth) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Xác thực sinh trắc học thất bại')),
+          );
+          setState(() {});
+          return;
+        }
+
+        await SecureStorage.setBiometricEnabled(true);
+        if (!mounted) return;
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã bật mở khóa sinh trắc học')),
+        );
+      } else {
+        // Yêu cầu xác thực trước khi tắt
+        final ok = await _authenticateUser(reason: 'Xác thực để tắt mở khóa sinh trắc học');
+        if (!ok) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Xác thực thất bại')),
+          );
+          setState(() {});
+          return;
+        }
+        await SecureStorage.setBiometricEnabled(false);
+        if (!mounted) return;
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã tắt mở khóa sinh trắc học')),
+        );
+      }
+    } catch (e) {
+      dev.log('Toggle biometric error: $e', name: 'settings');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể thay đổi cài đặt sinh trắc học')),
+      );
+      setState(() {});
+    }
   }
 
   void _selectNetwork() {
@@ -416,8 +726,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () async {
-              await _settingsService.setCustomRpcUrl(controller.text.trim());
+              final value = controller.text.trim();
               Navigator.pop(context);
+              await _settingsService.setCustomRpcUrl(value);
+              if (!mounted) return;
               setState(() {});
             },
             child: const Text('Save'),
@@ -452,8 +764,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               final value = double.tryParse(controller.text);
               if (value != null && value > 0 && value <= 50) {
-                await _settingsService.setSlippage(value);
                 Navigator.pop(context);
+                await _settingsService.setSlippage(value);
+                if (!mounted) return;
                 setState(() {});
               }
             },
@@ -489,8 +802,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               final value = int.tryParse(controller.text);
               if (value != null && value > 0 && value <= 120) {
-                await _settingsService.setDeadline(value);
                 Navigator.pop(context);
+                await _settingsService.setDeadline(value);
+                if (!mounted) return;
                 setState(() {});
               }
             },
@@ -504,41 +818,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _refreshTokenList() async {
     try {
       await widget.serviceLocator.tokenRegistry.clearCacheAndRefresh();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Token list refreshed successfully')),
       );
     } catch (e) {
+      dev.log('Failed to refresh tokens: $e', name: 'settings');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to refresh tokens: $e')),
       );
     }
   }
 
-  void _resetSettings() {
-    showDialog(
+  void _resetSettings() async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Reset Settings'),
         content: const Text('Are you sure you want to reset all settings to default? This cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              await _settingsService.clearAllSettings();
-              Navigator.pop(context);
-              setState(() {});
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings reset to default')),
-              );
-            },
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Reset', style: TextStyle(color: Colors.orange)),
           ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+    await _settingsService.clearAllSettings();
+    if (!mounted) return;
+    setState(() {});
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Settings reset to default')),
+    );
+  }
+
+  Future<void> _signOut() async {
+    try {
+      // Require auth only if security is configured
+      final hasPin = await SecureStorage.hasPinSet();
+      final bio = await SecureStorage.isBiometricEnabled();
+      if (hasPin || bio) {
+        final ok = await _authenticateUser(reason: 'Xác thực để đăng xuất và xóa ví');
+        if (!ok) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Xác thực thất bại')),
+          );
+          return;
+        }
+      }
+
+      // Confirm destructive action
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Đăng xuất & Xóa ví'),
+          content: const Text('Hành động này sẽ xóa ví, PIN và thiết lập sinh trắc học khỏi thiết bị này. Bạn có thể khôi phục lại bằng seed phrase đã sao lưu. Tiếp tục?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      // Securely delete wallet and clear in-memory state
+      await SecureStorage.deleteWallet();
+      widget.serviceLocator.walletService.dispose();
+
+      // Optional: reset last selected tab
+      await widget.prefsStore.setLastSelectedTab(0);
+
+      if (!mounted) return;
+      // Feedback before switching UI
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã đăng xuất')),
+      );
+
+      // Notify app to switch to onboarding
+      widget.onSignOut();
+    } catch (e) {
+      dev.log('Sign out error: $e', name: 'settings');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đăng xuất thất bại')),
+      );
+    }
   }
 
   String _getNetworkDisplayName(String network) {

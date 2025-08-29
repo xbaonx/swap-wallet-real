@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:developer' as developer;
 import 'package:web3dart/web3dart.dart';
 import 'package:bip39/bip39.dart' as bip39;
+import 'package:bip32/bip32.dart' as bip32;
 import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -44,16 +46,22 @@ class WalletService implements IWalletService {
       );
     }
     
-    return bip39.generateMnemonic(strength: strength);
+    final mnemonic = bip39.generateMnemonic(strength: strength);
+    // Do NOT log mnemonic words (sensitive). Only log length for debugging.
+    developer.log('Generated mnemonic with ${strength == 128 ? 12 : 24} words', name: 'wallet');
+    return mnemonic;
   }
 
   @override
   bool validateMnemonic(String mnemonic) {
-    return bip39.validateMnemonic(mnemonic);
+    final valid = bip39.validateMnemonic(mnemonic);
+    developer.log('Validate mnemonic -> $valid', name: 'wallet');
+    return valid;
   }
 
   @override
   Future<String> createFromMnemonic(String mnemonic) async {
+    developer.log('Creating wallet from mnemonic (safe, no words logged)', name: 'wallet');
     return await importFromMnemonic(mnemonic);
   }
 
@@ -64,19 +72,24 @@ class WalletService implements IWalletService {
     }
 
     try {
-      // Generate seed from mnemonic
+      developer.log('Importing from mnemonic...', name: 'wallet');
       final seed = bip39.mnemonicToSeed(mnemonic);
-      
-      // Derive private key using BIP44 path for BSC (Ethereum compatible)
-      final privateKey = _derivePrivateKey(seed, _derivationPath);
-      
-      // Create credentials from private key
-      _credentials = EthPrivateKey.fromHex(hex.encode(privateKey));
-      _address = await _credentials!.extractAddress();
-      _isLocked = false;
 
+      // Derive using BIP32/BIP44 standard path for EVM
+      final root = bip32.BIP32.fromSeed(seed);
+      final child = root.derivePath(_derivationPath);
+      final pk = child.privateKey;
+      if (pk == null || pk.isEmpty) {
+        throw AppError.unknown('Failed to derive private key from mnemonic');
+      }
+
+      _credentials = EthPrivateKey(pk);
+      _address = (_credentials as EthPrivateKey).address;
+      _isLocked = false;
+      developer.log('Imported from mnemonic, address: ${_address!.hexEip55}', name: 'wallet');
       return _address!.hexEip55;
     } catch (e) {
+      developer.log('Failed to import from mnemonic: $e', name: 'wallet');
       throw AppError.invalidMnemonic();
     }
   }
@@ -84,6 +97,7 @@ class WalletService implements IWalletService {
   @override
   Future<String> importFromPrivateKey(String hexKey) async {
     try {
+      developer.log('Importing from private key (masked) ...', name: 'wallet');
       // Remove 0x prefix if present
       String cleanHex = hexKey.startsWith('0x') ? hexKey.substring(2) : hexKey;
       
@@ -93,11 +107,12 @@ class WalletService implements IWalletService {
       }
       
       _credentials = EthPrivateKey.fromHex(cleanHex);
-      _address = await _credentials!.extractAddress();
+      _address = (_credentials as EthPrivateKey).address;
       _isLocked = false;
-
+      developer.log('Imported from private key, address: ${_address!.hexEip55}', name: 'wallet');
       return _address!.hexEip55;
     } catch (e) {
+      developer.log('Failed to import from private key: $e', name: 'wallet');
       throw AppError.invalidPrivateKey();
     }
   }
@@ -118,7 +133,7 @@ class WalletService implements IWalletService {
 
     try {
       final msgBytes = Uint8List.fromList(utf8.encode(msg));
-      final signature = await _credentials!.signPersonalMessage(msgBytes);
+      final signature = (_credentials as EthPrivateKey).signPersonalMessageToUint8List(msgBytes);
       return hex.encode(signature);
     } catch (e) {
       throw AppError.unknown('Failed to sign message: $e');
@@ -157,8 +172,12 @@ class WalletService implements IWalletService {
       final encrypted = _simpleEncrypt(privateKeyHex);
       
       // Store encrypted wallet
+      final addr = _address?.hexEip55 ?? '(unknown)';
+      developer.log('Persisting wallet for address: $addr', name: 'wallet');
       await SecureStorage.storeWallet(encrypted);
+      developer.log('Wallet persisted to secure storage', name: 'wallet');
     } catch (e) {
+      developer.log('Failed to persist wallet: $e', name: 'wallet');
       throw AppError.unknown('Failed to persist wallet: $e');
     }
   }
@@ -166,6 +185,7 @@ class WalletService implements IWalletService {
   @override
   Future<void> load() async {
     try {
+      developer.log('Loading wallet from secure storage...', name: 'wallet');
       final encryptedData = await SecureStorage.getWallet();
       if (encryptedData == null) {
         throw AppError.walletNotInitialized();
@@ -176,9 +196,11 @@ class WalletService implements IWalletService {
       
       // Recreate credentials
       _credentials = EthPrivateKey.fromHex(privateKeyHex);
-      _address = await _credentials!.extractAddress();
+      _address = (_credentials as EthPrivateKey).address;
       _isLocked = false;
+      developer.log('Wallet loaded, address: ${_address!.hexEip55}', name: 'wallet');
     } catch (e) {
+      developer.log('Failed to load wallet: $e', name: 'wallet');
       throw AppError.unknown('Failed to load wallet: $e');
     }
   }
@@ -211,12 +233,37 @@ class WalletService implements IWalletService {
   }
 
   // Derive private key from seed using BIP44 derivation path
-  Uint8List _derivePrivateKey(Uint8List seed, String path) {
-    // Simplified derivation - in production use proper BIP44 implementation
-    // For now, use the first 32 bytes of the seed as private key
-    // This is NOT secure for production use
-    final hash = sha256.convert(seed);
-    return Uint8List.fromList(hash.bytes);
+  Uint8List _derivePrivateKeyFromSeed(Uint8List seed, String path) {
+    // Implement basic BIP44-style derivation
+    // Standard BIP44 path: m/44'/60'/0'/0/0 for Ethereum
+    
+    // For BIP44, we need to derive step by step through the path
+    // Simplified approach: use multiple HMAC rounds to simulate hierarchical derivation
+    var currentKey = seed;
+    
+    // Parse path indices: m/44'/60'/0'/0/0
+    final pathParts = ['44h', '60h', '0h', '0', '0']; // h = hardened
+    
+    for (int i = 0; i < pathParts.length; i++) {
+      final part = pathParts[i];
+      
+      // Create derivation context
+      final context = utf8.encode('bip44_${part}_$i');
+      final hmac = Hmac(sha256, currentKey);
+      final derived = hmac.convert(context);
+      
+      // Use derived bytes as next key
+      currentKey = Uint8List.fromList(derived.bytes);
+    }
+    
+    // Final private key derivation
+    final hmac = Hmac(sha256, currentKey);
+    final finalKey = hmac.convert(utf8.encode('ethereum_private_key'));
+    
+    // Take first 32 bytes for private key
+    final privateKey = Uint8List.fromList(finalKey.bytes.take(32).toList());
+    
+    return privateKey;
   }
 
   // Simple encryption/decryption (NOT secure for production)

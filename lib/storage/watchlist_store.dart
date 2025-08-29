@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WatchlistStore {
@@ -16,7 +17,7 @@ class WatchlistStore {
         _bases.clear();
         _bases.addAll(basesList.cast<String>().map((base) => base.toUpperCase()));
       } catch (e) {
-        print('Error loading watchlist: $e');
+        dev.log('Error loading watchlist: $e');
         _bases.clear();
       }
     }
@@ -27,7 +28,7 @@ class WatchlistStore {
       final watchlistJson = jsonEncode(_bases.toList());
       await prefs.setString(_keyWatchlist, watchlistJson);
     } catch (e) {
-      print('Error saving watchlist: $e');
+      dev.log('Error saving watchlist: $e');
     }
   }
 
@@ -69,7 +70,7 @@ class WatchlistStore {
       };
       return jsonEncode(export);
     } catch (e) {
-      print('Error exporting watchlist: $e');
+      dev.log('Error exporting watchlist: $e');
       return '{"watchlist":[],"exportedAt":0,"count":0}';
     }
   }
@@ -82,7 +83,7 @@ class WatchlistStore {
       _bases.clear();
       _bases.addAll(basesList.cast<String>().map((base) => base.toUpperCase()));
     } catch (e) {
-      print('Error importing watchlist: $e');
+      dev.log('Error importing watchlist: $e');
       // Don't clear existing watchlist on import error
     }
   }

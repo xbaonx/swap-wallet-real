@@ -1,14 +1,35 @@
 import 'package:flutter/material.dart';
 
-class OnboardingCompleteScreen extends StatelessWidget {
+class OnboardingCompleteScreen extends StatefulWidget {
   final bool isImporting;
-  final VoidCallback onComplete;
+  final Future<void> Function() onComplete;
 
   const OnboardingCompleteScreen({
     super.key,
     required this.isImporting,
     required this.onComplete,
   });
+
+  @override
+  State<OnboardingCompleteScreen> createState() => _OnboardingCompleteScreenState();
+}
+
+class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
+  bool _isCompleting = false;
+
+  Future<void> _handleComplete() async {
+    if (_isCompleting) return;
+    setState(() => _isCompleting = true);
+    try {
+      await widget.onComplete();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to complete onboarding: $e')),
+      );
+      setState(() => _isCompleting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +60,7 @@ class OnboardingCompleteScreen extends StatelessWidget {
               const SizedBox(height: 32),
               
               Text(
-                'Wallet ${isImporting ? 'Imported' : 'Created'}!',
+                'Wallet ${widget.isImporting ? 'Imported' : 'Created'}!',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.green,
@@ -49,7 +70,7 @@ class OnboardingCompleteScreen extends StatelessWidget {
               const SizedBox(height: 16),
               
               Text(
-                isImporting 
+                widget.isImporting 
                     ? 'Your wallet has been successfully imported and is ready to use'
                     : 'Your new wallet has been created and secured. You\'re ready to start trading!',
                 textAlign: TextAlign.center,
@@ -110,7 +131,7 @@ class OnboardingCompleteScreen extends StatelessWidget {
               const Spacer(),
               
               // Security Reminder
-              if (!isImporting) ...[
+              if (!widget.isImporting) ...[
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -158,7 +179,7 @@ class OnboardingCompleteScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: onComplete,
+                  onPressed: _isCompleting ? null : _handleComplete,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -167,20 +188,29 @@ class OnboardingCompleteScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.rocket_launch),
-                      SizedBox(width: 8),
-                      Text(
-                        'Start Trading',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                  child: _isCompleting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.rocket_launch),
+                            SizedBox(width: 8),
+                            Text(
+                              'Start Trading',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ],

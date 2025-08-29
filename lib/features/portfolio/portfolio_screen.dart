@@ -29,14 +29,15 @@ class PortfolioScreen extends StatefulWidget {
 class _PortfolioScreenState extends State<PortfolioScreen> {
   List<Coin> _coins = [];
   late Portfolio _portfolio;
+  
 
   @override
   void initState() {
     super.initState();
+    
     // Initialize với portfolio thật từ prefsStore/engine
     _portfolio = widget.portfolioEngine.currentPortfolio;
-    print('🔍 PORTFOLIO SCREEN DEBUG: Initial portfolio USDT: ${_portfolio.usdt}');
-    print('🔍 PORTFOLIO SCREEN DEBUG: Initial positions: ${_portfolio.positions.keys}');
+    
     _setupStreams();
   }
 
@@ -49,7 +50,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     });
 
     widget.portfolioEngine.portfolioStream.listen((portfolio) {
-      print('🔍 PORTFOLIO SCREEN: Engine stream update - USDT: ${portfolio.usdt}');
       setState(() {
         _portfolio = portfolio;
       });
@@ -58,7 +58,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
     widget.prefsStore.portfolio.addListener(() {
       final newPortfolio = widget.prefsStore.portfolio.value;
-      print('🔍 PORTFOLIO SCREEN: PrefsStore listener - USDT: ${newPortfolio.usdt}');
       setState(() {
         _portfolio = newPortfolio;
       });
@@ -77,21 +76,27 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   Map<String, double> get _currentPrices {
     final prices = {for (var coin in _coins) coin.base: coin.last};
-    
-    // Price mapping completed
-    
+    // Fallback: use avgEntry from portfolio when Binance doesn't have the price
+    for (final entry in _portfolio.positions.entries) {
+      final base = entry.key;
+      final position = entry.value;
+      if (!prices.containsKey(base) || (prices[base] ?? 0) <= 0) {
+        prices[base] = position.avgEntry;
+      }
+    }
     return prices;
   }
 
   List<MapEntry<String, dynamic>> get _holdingsList {
     final holdings = <MapEntry<String, dynamic>>[];
-    
+    final prices = _currentPrices;
+
     for (final entry in _portfolio.positions.entries) {
       final base = entry.key;
       final position = entry.value;
-      
+
       if (position.qty > 1e-8) {
-        final coin = _coins.firstWhere(
+        final liveCoin = _coins.firstWhere(
           (c) => c.base == base,
           orElse: () => Coin(
             symbolPair: '${base}USDT',
@@ -103,8 +108,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             quoteVolume: 0.0,
           ),
         );
-        
-        final value = position.qty * coin.last;
+
+        final price = prices[base] ?? liveCoin.last;
+        final coin = liveCoin.copyWith(last: price);
+        final value = position.qty * price;
         holdings.add(MapEntry(base, {
           'coin': coin,
           'position': position,
@@ -112,7 +119,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         }));
       }
     }
-    
+
     // Sort by value descending
     holdings.sort((a, b) => b.value['value'].compareTo(a.value['value']));
     return holdings;
@@ -133,8 +140,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           SummaryHeader(
             portfolio: _portfolio,
             currentPrices: _currentPrices,
-            prefsStore: widget.prefsStore,
-            portfolioEngine: widget.portfolioEngine,
           ),
           MetricsStrip(
             portfolio: _portfolio,

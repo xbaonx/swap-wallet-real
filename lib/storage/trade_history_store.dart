@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/models/trade.dart';
 
@@ -24,7 +25,7 @@ class TradeHistoryStore {
         _trades.removeRange(0, _trades.length - maxTrades);
       }
     } catch (e) {
-      print('Error loading trades: $e');
+      dev.log('Error loading trades: $e');
       _trades.clear();
     }
   }
@@ -34,7 +35,7 @@ class TradeHistoryStore {
       final tradesJson = jsonEncode(_trades.map((trade) => trade.toJson()).toList());
       await prefs.setString(_keyTrades, tradesJson);
     } catch (e) {
-      print('Error saving trades: $e');
+      dev.log('Error saving trades: $e');
     }
   }
 
@@ -60,7 +61,7 @@ class TradeHistoryStore {
       };
       return jsonEncode(export);
     } catch (e) {
-      print('Error exporting trades: $e');
+      dev.log('Error exporting trades: $e');
       return '{"trades":[],"exportedAt":0,"count":0}';
     }
   }
@@ -86,7 +87,7 @@ class TradeHistoryStore {
         _trades.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       }
     } catch (e) {
-      print('Error importing trades: $e');
+      dev.log('Error importing trades: $e');
       // Don't clear existing trades on import error
     }
   }

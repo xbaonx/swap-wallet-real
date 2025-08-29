@@ -139,7 +139,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
                 'Please select the correct words to confirm you\'ve backed up your seed phrase',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
               
@@ -149,9 +149,9 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: Theme.of(context).colorScheme.surfaceVariant,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: Column(
                   children: [
@@ -228,10 +228,14 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
             width: 100,
             height: 48,
             decoration: BoxDecoration(
-              color: selectedWord.isNotEmpty ? Colors.blue.withOpacity(0.1) : Colors.white,
+              color: selectedWord.isNotEmpty
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
+                  : Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: selectedWord.isNotEmpty ? Colors.blue : Colors.grey[300]!,
+                color: selectedWord.isNotEmpty
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).dividerColor,
                 width: selectedWord.isNotEmpty ? 2 : 1,
               ),
             ),
@@ -241,7 +245,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
                 Text(
                   '$position',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[500],
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                     fontSize: 10,
                   ),
                 ),
@@ -250,7 +254,9 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
                   selectedWord.isNotEmpty ? selectedWord : '___',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: selectedWord.isNotEmpty ? Colors.blue : Colors.grey[400],
+                    color: selectedWord.isNotEmpty
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                   ),
                 ),
               ],
@@ -278,17 +284,23 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? Colors.grey[300] : Colors.blue.withOpacity(0.1),
+              color: isSelected
+                  ? Theme.of(context).colorScheme.surfaceVariant
+                  : Theme.of(context).colorScheme.primary.withOpacity(0.12),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: isSelected ? Colors.grey[400]! : Colors.blue,
+                color: isSelected
+                    ? Theme.of(context).dividerColor
+                    : Theme.of(context).colorScheme.primary,
               ),
             ),
             child: Text(
               word,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.grey[500] : Colors.blue,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                    : Theme.of(context).colorScheme.primary,
               ),
             ),
           ),

@@ -4,7 +4,7 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
-            android:name="com.example.crypto_swap_simulator.MainActivity"
+            android:name="com.example.swap_real.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""

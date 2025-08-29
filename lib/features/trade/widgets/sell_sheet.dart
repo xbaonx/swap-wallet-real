@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as dev;
 import '../../../core/constants.dart';
 import '../../../core/format.dart';
 import '../../../domain/logic/portfolio_engine.dart';
@@ -28,6 +29,15 @@ Future<void> showSellSheet({
   required PrefsStore prefsStore,
 }) async {
   final ctl = TextEditingController();
+  final qtyNotifier = ValueNotifier<double>(0.0);
+  
+  // Update notifier when text changes
+  void updateQty() {
+    qtyNotifier.value = double.tryParse(ctl.text.trim()) ?? 0.0;
+  }
+  
+  ctl.addListener(updateQty);
+  
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -79,7 +89,6 @@ Future<void> showSellSheet({
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     isDense: true,
                   ),
-                  onChanged: (_) => (ctx as Element).markNeedsBuild(),
                 ),
                 const SizedBox(height: 8),
                 Wrap(spacing: 8, children: [25, 50, 75, 100].map((p) {
@@ -89,73 +98,77 @@ Future<void> showSellSheet({
                       // Đảm bảo không vượt quá số lượng thực tế
                       final safeValue = v > qtyAvail ? qtyAvail : v;
                       ctl.text = safeValue.toStringAsFixed(6);
-                      (ctx as Element).markNeedsBuild();
                     },
                     child: Text('$p%'),
                   );
                 }).toList()),
                 const SizedBox(height: 8),
-                Builder(builder: (_) {
-                  final fee = AppConstants.tradingFee;
-                  final qty = double.tryParse(ctl.text.trim()) ?? 0.0;
-                  final can = qty > 0 && qtyAvail >= qty - 1e-6 && bid > 0;
-                  final usdtOut = can ? (qty * bid) * (1 - fee) : 0.0;
-                  final realized = can ? usdtOut - qty * avg : 0.0;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (can)
-                        Text('Nhận ~ ${AppFormat.formatUsdt(usdtOut)} USDT • Realized P&L: ${AppFormat.formatUsdt(realized)}',
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 48, width: double.infinity,
-                        child: FilledButton(
-                          onPressed: can ? () async {
-                            final v = double.tryParse(ctl.text.trim()) ?? 0.0;
-                            if (v <= 0) return;
-                            
-                            print('🔍 SELL DEBUG: Bắt đầu bán $v $base');
-                            print('🔍 SELL DEBUG: Position trước khi bán: ${position.qty}');
-                            
-                            final result = engine.sellOrder(base, v, bid);
-                            print('🔍 SELL DEBUG: Kết quả sellOrder: ${result.ok}');
-                            
-                            if (result.ok) {
-                              try {
-                                await prefsStore.recordSell(
-                                  base: base, qty: v, price: bid, feeRate: fee,
-                                  usdtOut: result.usdt, realizedPnL: result.realized ?? 0.0,
-                                );
-                                print('🔍 SELL DEBUG: Đã ghi trade history');
-                              } catch (e) {
-                                print('🔍 SELL DEBUG: Lỗi ghi trade history: $e');
-                              }
+                ValueListenableBuilder<double>(
+                  valueListenable: qtyNotifier,
+                  builder: (context, qty, child) {
+                    final fee = AppConstants.tradingFee;
+                    final can = qty > 0 && qtyAvail >= qty - 1e-6 && bid > 0;
+                    final usdtOut = can ? (qty * bid) * (1 - fee) : 0.0;
+                    final realized = can ? usdtOut - qty * avg : 0.0;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (can)
+                          Text('Nhận ~ ${AppFormat.formatUsdt(usdtOut)} USDT • Realized P&L: ${AppFormat.formatUsdt(realized)}',
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 48, width: double.infinity,
+                          child: FilledButton(
+                            onPressed: can ? () async {
+                              final v = double.tryParse(ctl.text.trim()) ?? 0.0;
+                              if (v <= 0) return;
                               
-                              await prefsStore.commitNow(engine.currentPortfolio);
-                              print('🔍 SELL DEBUG: Đã commit portfolio');
+                              dev.log('🔍 SELL DEBUG: Bắt đầu bán $v $base');
+                              dev.log('🔍 SELL DEBUG: Position trước khi bán: ${position.qty}');
                               
-                              if (ctx.mounted) {
-                                Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Đã bán ${v.toStringAsFixed(6)} $base')),
-                                );
+                              final result = engine.sellOrder(base, v, bid);
+                              dev.log('🔍 SELL DEBUG: Kết quả sellOrder: ${result.ok}');
+                              
+                              if (result.ok) {
+                                try {
+                                  await prefsStore.recordSell(
+                                    base: base, qty: v, price: bid, feeRate: fee,
+                                    usdtOut: result.usdt, realizedPnL: result.realized ?? 0.0,
+                                  );
+                                  dev.log('🔍 SELL DEBUG: Đã ghi trade history');
+                                } catch (e) {
+                                  dev.log('🔍 SELL DEBUG: Lỗi ghi trade history: $e');
+                                }
+                                
+                                await prefsStore.commitNow(engine.currentPortfolio);
+                                dev.log('🔍 SELL DEBUG: Đã commit portfolio');
+                                
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Đã bán ${v.toStringAsFixed(6)} $base')),
+                                  );
+                                }
+                              } else {
+                                dev.log('🔍 SELL DEBUG: Bán thất bại!');
                               }
-                            } else {
-                              print('🔍 SELL DEBUG: Bán thất bại!');
-                            }
-                          } : null,
-                          child: const Text('Bán'),
+                            } : null,
+                            child: const Text('Bán'),
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                }),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           );
         },
       );
     },
-  );
+  ).whenComplete(() {
+    ctl.removeListener(updateQty);
+    qtyNotifier.dispose();
+  });
 }

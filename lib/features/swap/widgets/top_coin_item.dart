@@ -18,6 +18,7 @@ class TopCoinItem extends StatelessWidget {
   final PortfolioEngine portfolioEngine;
   final PollingService pollingService;
   final PrefsStore prefsStore;
+  final int rank;
   final bool isExpanded;
   final VoidCallback onTap;
 
@@ -29,6 +30,7 @@ class TopCoinItem extends StatelessWidget {
     required this.portfolioEngine,
     required this.pollingService,
     required this.prefsStore,
+    required this.rank,
     required this.isExpanded,
     required this.onTap,
   });
@@ -36,149 +38,121 @@ class TopCoinItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasPosition = position != null && position!.qty > 0;
-    final unrealizedPnL = hasPosition 
-        ? portfolioEngine.getUnrealizedPnL(coin.base, coin.last) 
-        : 0.0;
+    final isPositive = coin.pct24h >= 0;
+    final pctColor = isPositive ? AppColors.success : AppColors.danger;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () {
-              showSwapSheet(
-                context: context,
+      child: InkWell(
+        onTap: () {
+          showSwapSheet(
+            context: context,
+            base: coin.base,
+            ask: coin.last,
+            usdtBalance: portfolio.usdt,
+            engine: portfolioEngine,
+            prefsStore: prefsStore,
+          );
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              // Rank number
+              SizedBox(
+                width: 24,
+                child: Text(
+                  '$rank',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(width: 8),
+              
+              // Coin logo
+              CoinLogo(
                 base: coin.base,
-                ask: coin.last,
-                usdtBalance: portfolio.usdt,
-                engine: portfolioEngine,
-                prefsStore: prefsStore,
-              );
-            },
-            borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Top row: logo + base, last price, %24h, volume
-                  Row(
-                    children: [
-                      CoinLogo(
-                        base: coin.base,
-                        size: 28,
-                        radius: 6,
-                        padding: const EdgeInsets.only(right: 12),
+                size: 28,
+                radius: 6,
+                padding: const EdgeInsets.only(right: 12),
+              ),
+              
+              // Name + volume
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      coin.base,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              coin.base,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              AppFormat.formatVolume(coin.quoteVolume),
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '\$${AppFormat.formatUsdt(coin.last)}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: coin.pct24h >= 0 ? AppColors.success : AppColors.danger,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              AppFormat.formatPercent(coin.pct24h),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Sparkline
-                  SizedBox(
-                    height: 60,
-                    child: SparklineWidget(
-                      coin: coin,
-                      pollingService: pollingService,
                     ),
-                  ),
-                  
-                  // Position info (if holding)
-                  if (hasPosition) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: theme.colorScheme.primary.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Sở hữu: ${AppFormat.formatCoin(position!.qty)}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Giá trị: \$${AppFormat.formatUsdt(position!.qty * coin.last)}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'U-P&L: \$${AppFormat.formatUsdt(unrealizedPnL)} (${AppFormat.formatPercent((unrealizedPnL / (position!.qty * position!.avgEntry)) * 100)})',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: unrealizedPnL >= 0 ? AppColors.success : AppColors.danger,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.end,
-                            ),
-                          ),
-                        ],
-                      ),
+                    Text(
+                      '\$${AppFormat.formatVolume(coin.quoteVolume)}',
+                      style: theme.textTheme.bodySmall,
                     ),
                   ],
+                ),
+              ),
+              
+              // Price
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '\$${AppFormat.formatUsdt(coin.last)}',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
-            ),
+              const SizedBox(width: 8),
+              
+              // Sparkline + % 24h
+              SizedBox(
+                width: 72,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: 32,
+                      child: SparklineWidget(
+                        coin: coin,
+                        pollingService: pollingService,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                          size: 16,
+                          color: pctColor,
+                        ),
+                        Text(
+                          AppFormat.formatPercent(coin.pct24h),
+                          style: TextStyle(
+                            color: pctColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

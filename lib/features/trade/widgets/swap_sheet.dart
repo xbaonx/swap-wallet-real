@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as dev;
 import '../../../core/constants.dart';
 import '../../../core/format.dart';
 import '../../../domain/logic/portfolio_engine.dart';
@@ -112,11 +113,11 @@ Future<void> showSwapSheet({
                             final v = double.tryParse(ctl.text.trim()) ?? 0.0;
                             if (v <= 0) return;
                             
-                            print('🔍 BUY DEBUG: Bắt đầu mua $base với ${AppFormat.formatUsdt(v)} USDT');
-                            print('🔍 BUY DEBUG: Số dư USDT trước khi mua: ${usdtBalance}');
+                            dev.log('🔍 BUY DEBUG: Bắt đầu mua $base với ${AppFormat.formatUsdt(v)} USDT');
+                            dev.log('🔍 BUY DEBUG: Số dư USDT trước khi mua: ${usdtBalance}');
                             
                             final result = engine.buyOrder(base, v, ask);
-                            print('🔍 BUY DEBUG: Kết quả buyOrder: ${result.ok}');
+                            dev.log('🔍 BUY DEBUG: Kết quả buyOrder: ${result.ok}');
                             
                             if (result.ok) {
                               try {
@@ -124,13 +125,13 @@ Future<void> showSwapSheet({
                                   base: base, qty: result.qty,
                                   price: ask, feeRate: fee, usdtIn: v,
                                 );
-                                print('🔍 BUY DEBUG: Đã ghi trade history');
+                                dev.log('🔍 BUY DEBUG: Đã ghi trade history');
                               } catch (e) {
-                                print('🔍 BUY DEBUG: Lỗi ghi trade history: $e');
+                                dev.log('🔍 BUY DEBUG: Lỗi ghi trade history: $e');
                               }
                               
                               await prefsStore.commitNow(engine.currentPortfolio);
-                              print('🔍 BUY DEBUG: Đã commit portfolio');
+                              dev.log('🔍 BUY DEBUG: Đã commit portfolio');
                               
                               if (ctx.mounted) {
                                 Navigator.pop(ctx);
@@ -139,7 +140,7 @@ Future<void> showSwapSheet({
                                 );
                               }
                             } else {
-                              print('🔍 BUY DEBUG: Mua thất bại!');
+                              dev.log('🔍 BUY DEBUG: Mua thất bại!');
                             }
                           } : null,
                           child: const Text('Mua'),

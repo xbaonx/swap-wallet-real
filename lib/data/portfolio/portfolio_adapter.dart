@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import '../../domain/models/portfolio.dart';
 import '../../domain/models/position.dart';
 import '../../domain/logic/portfolio_engine.dart';
@@ -35,91 +36,129 @@ class PortfolioAdapter extends PortfolioEngine {
   }
 
   /// Sync with ground truth from Moralis - call this to override local state
-  Future<void> syncWithBlockchain() async {
+  Future<void> syncWithBlockchain({List<String>? chains}) async {
+    // Basic guards
     if (!_walletService.isInitialized || _walletService.isLocked) {
+      developer.log('Sync aborted - wallet not ready (initialized=${_walletService.isInitialized}, locked=${_walletService.isLocked})', name: 'portfolio');
       return; // Cannot sync without wallet
     }
     
-    if (_isRefreshing) return;
+    if (_isRefreshing) {
+      developer.log('Sync skipped - already refreshing', name: 'portfolio');
+      return;
+    }
     _isRefreshing = true;
 
     try {
       final address = await _walletService.getAddress();
-      print('🔍 PORTFOLIO ADAPTER: Syncing portfolio for $address...');
-      
-      // Get token balances from Moralis
-      final balancesResponse = await _moralisClient.walletTokenBalances(address: address);
-      final tokenBalances = balancesResponse.result;
-      
-      // Get native BNB balance
-      final bnbBalanceWei = await _moralisClient.getNativeBalance(address: address);
-      final bnbBalance = BigInt.parse(bnbBalanceWei).toDouble() / 1e18;
-      
-      // Convert Moralis balances to positions
+      final masked = address.length > 10
+          ? '${address.substring(0, 6)}...${address.substring(address.length - 4)}'
+          : address;
+      developer.log('Sync start for $masked', name: 'portfolio');
+      // Default chains to aggregate
+      final targetChains = chains ?? const ['bsc', 'eth', 'polygon'];
+      const nativeSymbols = {
+        'bsc': 'BNB',
+        'eth': 'ETH',
+        'polygon': 'MATIC',
+      };
+
+      // Aggregate positions across chains
       final newPositions = <String, Position>{};
-      double totalUsdtBalance = 0.0;
       
-      for (final tokenBalance in tokenBalances) {
-        // Skip spam tokens
-        if (tokenBalance.possibleSpam == true) continue;
-        
-        final symbol = tokenBalance.symbol.toUpperCase();
-        final balance = BigInt.parse(tokenBalance.balance).toDouble() / 
-                       BigInt.from(10).pow(tokenBalance.decimals).toDouble();
-        
-        // Skip dust amounts
-        if (balance < 1e-8) continue;
-        
-        try {
-          // Get USD price for this token
-          final priceData = await _moralisClient.tokenPrice(tokenAddress: tokenBalance.tokenAddress);
-          final usdPrice = priceData.usdPrice;
-          
-          if (symbol == 'USDT' || symbol == 'BUSD' || symbol == 'USDC') {
-            // These are stablecoin balances - add to USDT balance
-            totalUsdtBalance += balance;
-          } else {
-            // Create position with current market price as avgEntry
-            // This assumes user acquired tokens at current price (for P&L calculation)
-            newPositions[symbol] = Position(
-              qty: balance,
-              avgEntry: usdPrice,
+      for (final chain in targetChains) {
+        // 1) ERC20 balances per chain
+        final balancesResponse = await _moralisClient.walletTokenBalances(address: address, chain: chain);
+        final tokenBalances = balancesResponse.result;
+        developer.log('[CHAIN:$chain] Moralis returned ${tokenBalances.length} token balances', name: 'portfolio');
+
+        for (final tokenBalance in tokenBalances) {
+          // Skip spam tokens
+          if (tokenBalance.possibleSpam == true) continue;
+
+          final symbol = tokenBalance.symbol.toUpperCase();
+          final balance = BigInt.parse(tokenBalance.balance).toDouble() /
+              BigInt.from(10).pow(tokenBalance.decimals).toDouble();
+
+          // Skip dust amounts
+          if (balance < 1e-8) continue;
+
+          try {
+            // Get USD price for this token (on its chain)
+            final priceData = await _moralisClient.tokenPrice(
+              tokenAddress: tokenBalance.tokenAddress,
+              chain: chain,
             );
+            final usdPrice = priceData.usdPrice;
+
+            // Aggregate tất cả token (bao gồm stablecoins) như holdings riêng
+            final existing = newPositions[symbol];
+            if (existing == null) {
+              newPositions[symbol] = Position(qty: balance, avgEntry: usdPrice);
+            } else {
+              newPositions[symbol] = Position(
+                qty: existing.qty + balance,
+                // keep previous avgEntry (giá vốn tạm bằng giá hiện tại lần đầu thấy)
+                avgEntry: existing.avgEntry,
+              );
+            }
+          } catch (e) {
+            // Skip tokens without price data
           }
-          
-          print('🔍 PORTFOLIO SYNC: $symbol balance=$balance price=\$${usdPrice.toStringAsFixed(2)}');
-        } catch (e) {
-          print('🔍 PORTFOLIO SYNC: Failed to get price for ${tokenBalance.symbol}: $e');
-          // Skip tokens without price data
         }
-      }
-      
-      // Handle BNB balance
-      if (bnbBalance > 1e-8) {
+
+        // 2) Native balance per chain
         try {
-          final bnbPrice = await _moralisClient.getBnbPrice();
-          newPositions['BNB'] = Position(
-            qty: bnbBalance,
-            avgEntry: bnbPrice,
-          );
-          print('🔍 PORTFOLIO SYNC: BNB balance=$bnbBalance price=\$${bnbPrice.toStringAsFixed(2)}');
+          final nativeBalWei = await _moralisClient.getNativeBalance(address: address, chain: chain);
+          final nativeBal = BigInt.parse(nativeBalWei).toDouble() / 1e18;
+          if (nativeBal > 1e-8) {
+            final nativePrice = await _moralisClient.getNativePrice(chain: chain);
+            final symbol = nativeSymbols[chain] ?? chain.toUpperCase();
+            final existing = newPositions[symbol];
+            if (existing == null) {
+              newPositions[symbol] = Position(qty: nativeBal, avgEntry: nativePrice);
+            } else {
+              newPositions[symbol] = Position(
+                qty: existing.qty + nativeBal,
+                avgEntry: existing.avgEntry,
+              );
+            }
+          }
         } catch (e) {
-          print('🔍 PORTFOLIO SYNC: Failed to get BNB price: $e');
+          // ignore native errors per chain
         }
       }
       
-      // Create new portfolio with blockchain data, but preserve realized P&L and deposits
+      // Create new portfolio with blockchain data
+      // Lựa chọn 2: Stablecoins hiển thị như holdings riêng => KHÔNG override usdt.
+      // One-time migration: nếu usdt hiện tại ~ tổng stable qty (USDT/USDC/BUSD), đặt usdt=0 để tránh double count.
+      // Lý do: các phiên bản trước chỉ gộp 3 stable này vào usdt.
+      final stableSymbols = {'USDT', 'USDC', 'BUSD'};
+      final approxStableQty = newPositions.entries
+          .where((e) => stableSymbols.contains(e.key))
+          .fold<double>(0.0, (sum, e) => sum + e.value.qty);
+
+      double? migratedUsdt;
+      if (currentPortfolio.usdt > 0 && approxStableQty > 0) {
+        final diff = (currentPortfolio.usdt - approxStableQty).abs();
+        final tolerance = 0.05 + 0.005 * approxStableQty; // 5 cents + 0.5%
+        if (diff <= tolerance) {
+          migratedUsdt = 0.0;
+        }
+      }
+
       final newPortfolio = currentPortfolio.copyWith(
-        usdt: totalUsdtBalance,
+        usdt: migratedUsdt,
         positions: newPositions,
-        // Keep existing realized P&L and deposits from local state
+        // Keep realized P&L and deposits from local state
       );
       
       setPortfolio(newPortfolio);
+      developer.log('Sync complete | positions=${newPositions.length}, usdt=${newPortfolio.usdt.toStringAsFixed(4)}', name: 'portfolio');
       
-      print('🔍 PORTFOLIO SYNC: Updated portfolio - USDT: ${totalUsdtBalance.toStringAsFixed(2)}, Positions: ${newPositions.length}');
     } catch (e) {
-      print('🔍 PORTFOLIO SYNC: Failed to sync portfolio: $e');
+      // Failed to sync portfolio
+      developer.log('Sync failed -> $e', name: 'portfolio');
     } finally {
       _isRefreshing = false;
     }
@@ -132,7 +171,7 @@ class PortfolioAdapter extends PortfolioEngine {
 
   /// Legacy method - now does nothing (periodic sync disabled to save resources)
   void startPeriodicSync() {
-    print('🔍 PORTFOLIO ADAPTER: Periodic sync disabled - use manual refresh instead');
+    // Periodic sync disabled to save resources
   }
 
   void stopPeriodicSync() {
@@ -239,6 +278,18 @@ class PortfolioAdapter extends PortfolioEngine {
     final position = currentPortfolio.positions[base];
     if (position == null || position.qty == 0) return 0.0;
     return (currentPrice - position.avgEntry) * position.qty;
+  }
+
+  /// Get current wallet address for UI display
+  Future<String?> getCurrentWalletAddress() async {
+    try {
+      if (!_walletService.isInitialized || _walletService.isLocked) {
+        return null;
+      }
+      return await _walletService.getAddress();
+    } catch (e) {
+      return null;
+    }
   }
 
   @override
