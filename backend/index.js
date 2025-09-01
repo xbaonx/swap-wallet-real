@@ -92,6 +92,42 @@ if (SENTRY_DSN) {
   app.use(Sentry.Handlers.requestHandler());
 }
 
+// ----- Optional App Auth (JWT or HMAC) -----
+function verifyJwtToken(req) {
+  const auth = req.get('authorization') || '';
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  try { return jwt.verify(m[1], JWT_SECRET); } catch { return null; }
+}
+function verifyHmacSignature(req) {
+  try {
+    const ts = req.get('x-timestamp');
+    const sig = req.get('x-signature');
+    if (!ts || !sig) return false;
+    const skew = Math.abs((Date.now() - Number(ts)) / 1000);
+    if (!Number.isFinite(skew) || skew > 300) return false; // 5 minutes
+    const base = `${req.rawBody || ''}.${ts}`;
+    const expected = crypto.createHmac('sha256', HMAC_SECRET).update(base).digest('hex');
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
+  } catch { return false; }
+}
+function appAuth(requiredForWriteOnly = true) {
+  return (req, res, next) => {
+    if (!JWT_SECRET && !HMAC_SECRET) return next();
+    if (requiredForWriteOnly && req.method === 'GET') return next();
+    let ok = false;
+    if (JWT_SECRET) ok = !!verifyJwtToken(req);
+    if (!ok && HMAC_SECRET) ok = verifyHmacSignature(req);
+    if (ok) return next();
+    return res.status(401).json({ error: 'unauthorized' });
+  };
+}
+
+// ----- Admin auth -----
+const adminAuth = (BASIC_AUTH_USER && BASIC_AUTH_PASS)
+  ? basicAuth({ users: { [BASIC_AUTH_USER]: BASIC_AUTH_PASS }, challenge: true })
+  : (req, res, next) => res.status(401).json({ error: 'admin_auth_not_configured' });
+
 // ---- Tokens and Config ----
 app.get('/api/tokens', async (req, res) => {
   try {
@@ -508,42 +544,6 @@ app.use((req, res, next) => {
   } catch {}
   next();
 });
-
-// ----- Optional App Auth (JWT or HMAC) -----
-function verifyJwtToken(req) {
-  const auth = req.get('authorization') || '';
-  const m = auth.match(/^Bearer\s+(.+)$/i);
-  if (!m) return null;
-  try { return jwt.verify(m[1], JWT_SECRET); } catch { return null; }
-}
-function verifyHmacSignature(req) {
-  try {
-    const ts = req.get('x-timestamp');
-    const sig = req.get('x-signature');
-    if (!ts || !sig) return false;
-    const skew = Math.abs((Date.now() - Number(ts)) / 1000);
-    if (!Number.isFinite(skew) || skew > 300) return false; // 5 minutes
-    const base = `${req.rawBody || ''}.${ts}`;
-    const expected = crypto.createHmac('sha256', HMAC_SECRET).update(base).digest('hex');
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
-  } catch { return false; }
-}
-function appAuth(requiredForWriteOnly = true) {
-  return (req, res, next) => {
-    if (!JWT_SECRET && !HMAC_SECRET) return next();
-    if (requiredForWriteOnly && req.method === 'GET') return next();
-    let ok = false;
-    if (JWT_SECRET) ok = !!verifyJwtToken(req);
-    if (!ok && HMAC_SECRET) ok = verifyHmacSignature(req);
-    if (ok) return next();
-    return res.status(401).json({ error: 'unauthorized' });
-  };
-}
-
-// ----- Admin auth -----
-const adminAuth = (BASIC_AUTH_USER && BASIC_AUTH_PASS)
-  ? basicAuth({ users: { [BASIC_AUTH_USER]: BASIC_AUTH_PASS }, challenge: true })
-  : (req, res, next) => res.status(401).json({ error: 'admin_auth_not_configured' });
 
 // ----- Routes -----
 app.get('/healthz', (req, res) => {
