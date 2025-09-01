@@ -20,7 +20,7 @@ class TopCoinItem extends StatelessWidget {
   final PrefsStore prefsStore;
   final int rank;
   final bool isExpanded;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const TopCoinItem({
     super.key,
@@ -32,7 +32,7 @@ class TopCoinItem extends StatelessWidget {
     required this.prefsStore,
     required this.rank,
     required this.isExpanded,
-    required this.onTap,
+    this.onTap,
   });
 
   @override
@@ -44,7 +44,7 @@ class TopCoinItem extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () {
+        onTap: onTap ?? () {
           showSwapSheet(
             context: context,
             base: coin.base,

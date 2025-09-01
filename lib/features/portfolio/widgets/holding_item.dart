@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/colors.dart';
 import '../../../core/format.dart';
+import '../../../core/i18n.dart';
 import '../../../domain/logic/portfolio_engine.dart';
 import '../../../domain/models/coin.dart';
 import '../../../domain/models/position.dart';
@@ -75,7 +76,7 @@ class HoldingItem extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Sở hữu: ${AppFormat.formatCoin(position.qty)}',
+                              '${AppI18n.tr(context, 'portfolio.holding.owned')} ${AppFormat.formatCoin(position.qty)}',
                               style: theme.textTheme.bodySmall,
                             ),
                           ],
@@ -123,7 +124,7 @@ class HoldingItem extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Avg Entry',
+                              AppI18n.tr(context, 'portfolio.holding.avg_entry'),
                               style: theme.textTheme.bodySmall,
                             ),
                             Text(
@@ -140,7 +141,7 @@ class HoldingItem extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Text(
-                              'Giá trị',
+                              AppI18n.tr(context, 'portfolio.holding.value'),
                               style: theme.textTheme.bodySmall,
                             ),
                             Text(
@@ -157,7 +158,7 @@ class HoldingItem extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              'U-P&L',
+                              AppI18n.tr(context, 'portfolio.holding.upnl'),
                               style: theme.textTheme.bodySmall,
                             ),
                             Text(

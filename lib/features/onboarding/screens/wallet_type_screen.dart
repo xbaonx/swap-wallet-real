@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n.dart';
 
 class WalletTypeScreen extends StatelessWidget {
   final Function(bool isImporting) onWalletTypeSelected;
@@ -18,7 +19,7 @@ class WalletTypeScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: onBack,
         ),
-        title: const Text('Setup Wallet'),
+        title: Text(AppI18n.tr(context, 'onboarding.wallet_type.appbar')),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -29,7 +30,7 @@ class WalletTypeScreen extends StatelessWidget {
               const SizedBox(height: 32),
               
               Text(
-                'How would you like to\nsetup your wallet?',
+                AppI18n.tr(context, 'onboarding.wallet_type.title'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
@@ -39,7 +40,7 @@ class WalletTypeScreen extends StatelessWidget {
               const SizedBox(height: 16),
               
               Text(
-                'Choose how you want to create or restore your wallet',
+                AppI18n.tr(context, 'onboarding.wallet_type.subtitle'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.grey[600],
@@ -52,8 +53,8 @@ class WalletTypeScreen extends StatelessWidget {
               _buildWalletOption(
                 context,
                 icon: Icons.add_circle_outline,
-                title: 'Create New Wallet',
-                description: 'Generate a new wallet with a 12-word recovery phrase',
+                title: AppI18n.tr(context, 'onboarding.wallet_type.create.title'),
+                description: AppI18n.tr(context, 'onboarding.wallet_type.create.desc'),
                 onTap: () => onWalletTypeSelected(false),
                 color: Colors.blue,
               ),
@@ -64,8 +65,8 @@ class WalletTypeScreen extends StatelessWidget {
               _buildWalletOption(
                 context,
                 icon: Icons.download,
-                title: 'Import Existing Wallet',
-                description: 'Restore wallet from seed phrase or private key',
+                title: AppI18n.tr(context, 'onboarding.wallet_type.import.title'),
+                description: AppI18n.tr(context, 'onboarding.wallet_type.import.desc'),
                 onTap: () => onWalletTypeSelected(true),
                 color: Colors.green,
               ),
@@ -93,7 +94,7 @@ class WalletTypeScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Security First',
+                            AppI18n.tr(context, 'onboarding.wallet_type.security.title'),
                             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: Colors.amber[700],
@@ -101,7 +102,7 @@ class WalletTypeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Your wallet is secured on-device. We never store your private keys or seed phrase.',
+                            AppI18n.tr(context, 'onboarding.wallet_type.security.desc'),
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.amber[700],
                             ),

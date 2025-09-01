@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
 import '../core/http.dart';
 import '../core/errors.dart';
+import '../core/constants.dart';
 import 'models/oneinch_models.dart';
 
 class InchClient {
@@ -22,19 +23,26 @@ class InchClient {
             'Content-Type': 'application/json',
           },
         ) {
-    if (_apiKey.isEmpty) {
+    // Allow missing API key if using server-side proxy
+    if ((_proxyUrl == null || _proxyUrl!.isEmpty) && _apiKey.isEmpty) {
       throw AppError(
         code: AppErrorCode.unknown,
-        message: 'ONEINCH_API_KEY is required in .env file',
+        message: 'ONEINCH_API_KEY is required in .env file (or set ONEINCH_PROXY_URL to use backend proxy)',
       );
     }
   }
 
   HttpClient get httpClient => _httpClient;
 
-  Map<String, String> get _authHeaders => {
-        'Authorization': 'Bearer $_apiKey',
-      };
+  Map<String, String> get _authHeaders {
+    // When using proxy, API key must be kept server-side. Do not send from client.
+    if (_proxyUrl != null && _proxyUrl!.isNotEmpty) {
+      return {};
+    }
+    return {
+      'Authorization': 'Bearer $_apiKey',
+    };
+  }
 
   String _buildUrl(String endpoint) {
     if (_proxyUrl != null && _proxyUrl!.isNotEmpty) {
@@ -147,6 +155,7 @@ class InchClient {
   Future<OneInchTransactionData> buildApproveTx({
     required String tokenAddress,
     required String amountWei,
+    required String fromAddress,
     String? spenderAddress,
     int chainId = _bscChainId,
   }) async {
@@ -163,7 +172,24 @@ class InchClient {
         headers: _authHeaders,
       );
 
-      return OneInchTransactionData.fromJson(response.data);
+      final data = response.data;
+      if (data == null || data is! Map<String, dynamic>) {
+        throw AppError.networkError('1inch approve: empty or invalid response');
+      }
+
+      final map = Map<String, dynamic>.from(data);
+      // Ensure required fields
+      if (map['to'] == null || map['data'] == null) {
+        final err = map['description'] ?? map['message'] ?? 'missing to/data';
+        throw AppError.networkError('Failed to build approve tx: $err');
+      }
+      // Fill optional/missing fields
+      map['from'] ??= fromAddress;
+      map['value'] = (map['value'] ?? '0').toString();
+      map['gas'] = (map['gas'] ?? '0').toString();
+      map['gasPrice'] = (map['gasPrice'] ?? '0').toString();
+
+      return OneInchTransactionData.fromJson(map);
     } catch (e) {
       throw AppError.networkError('Failed to build approve tx: $e');
     }
@@ -179,24 +205,78 @@ class InchClient {
     int chainId = _bscChainId,
     bool disableEstimate = false,
     bool allowPartialFill = false,
+    String? referrerAddress,
+    double? referrerFeePercent,
   }) async {
     try {
       final url = _buildUrl('/swap/v6.0/$chainId/swap');
+      
+      final queryParams = {
+        'src': fromTokenAddress,
+        'dst': toTokenAddress,
+        'amount': amountWei,
+        'from': fromAddress,
+        'slippage': (slippageBps / 100.0).toString(),
+        'disableEstimate': disableEstimate.toString(),
+        'allowPartialFill': allowPartialFill.toString(),
+        // Ensure tokens info is present to satisfy parser expectations
+        'includeTokensInfo': 'true',
+        // Referral parameters (1inch format: referrerAddress & fee in percentage)
+        if (referrerAddress?.isNotEmpty == true) 'referrerAddress': referrerAddress!,
+        if (referrerFeePercent != null && referrerFeePercent > 0) 'fee': referrerFeePercent.toString(),
+      };
+      
+      if (kDebugMode) {
+        dev.log('🔍 1inch v6 SWAP Request URL: $url');
+        dev.log('🔍 1inch v6 SWAP Request Params: $queryParams');
+      }
+      
       final response = await _httpClient.get(
         url,
-        queryParameters: {
-          'src': fromTokenAddress,
-          'dst': toTokenAddress,
-          'amount': amountWei,
-          'from': fromAddress,
-          'slippage': (slippageBps / 100.0).toString(),
-          'disableEstimate': disableEstimate.toString(),
-          'allowPartialFill': allowPartialFill.toString(),
-        },
+        queryParameters: queryParams,
         headers: _authHeaders,
       );
 
-      return OneInchSwapResponse.fromJson(response.data);
+      if (kDebugMode) {
+        dev.log('🔍 1inch v6 SWAP Response Status: ${response.statusCode}');
+        dev.log('🔍 1inch v6 SWAP Response: ${response.data}');
+      }
+
+      final data = response.data;
+      if (data == null || data is! Map<String, dynamic>) {
+        throw AppError.networkError('1inch swap: empty or invalid response');
+      }
+
+      // Guard against missing fields on some responses
+      final map = Map<String, dynamic>.from(data);
+      final txField = map['tx'];
+      if (txField == null || txField is! Map) {
+        final err = map['description'] ?? map['message'] ?? map.toString();
+        throw AppError.networkError('Failed to build swap tx: $err');
+      }
+      // Normalize tx to a Map<String, dynamic>
+      map['tx'] = Map<String, dynamic>.from(txField as Map);
+
+      // Some responses omit token info unless explicitly requested. Ensure parser has defaults.
+      map['fromToken'] ??= {
+        'symbol': 'UNKNOWN',
+        'name': 'Unknown',
+        'address': '0x0000000000000000000000000000000000000000',
+        'decimals': 18,
+      };
+      map['toToken'] ??= {
+        'symbol': 'UNKNOWN',
+        'name': 'Unknown',
+        'address': '0x0000000000000000000000000000000000000000',
+        'decimals': 18,
+      };
+
+      // Map v6 amount fields if present (some responses use srcAmount/dstAmount)
+      // Ensure our models receive string amounts to prevent type issues
+      map['fromTokenAmount'] ??= (map['srcAmount'] ?? map['fromAmount'])?.toString();
+      map['toTokenAmount'] ??= (map['dstAmount'] ?? map['toAmount'])?.toString();
+
+      return OneInchSwapResponse.fromJson(map);
     } catch (e) {
       throw AppError.networkError('Failed to build swap tx: $e');
     }

@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../domain/models/portfolio.dart';
-import '../domain/models/position.dart';
 import '../domain/models/trade.dart';
 import 'trade_history_store.dart';
 import 'watchlist_store.dart';
@@ -14,6 +13,8 @@ import 'watchlist_store.dart';
 class PrefsStore {
   final SharedPreferences _prefs;
   final ValueNotifier<ThemeMode> _themeModeNotifier = ValueNotifier(ThemeMode.system);
+  // 'system' means follow device language; otherwise 'en' or 'vi'.
+  final ValueNotifier<String> _languageNotifier = ValueNotifier('system');
   final ValueNotifier<Portfolio> _portfolioNotifier = ValueNotifier(
     const Portfolio(
       usdt: AppConstants.initialUsdt,
@@ -34,6 +35,7 @@ class PrefsStore {
   static const _keyThemeMode = 'themeMode';
   static const _keyPortfolio = 'portfolio';
   static const _keyLastTab = 'lastSelectedTab';
+  static const _keyLanguage = 'languageCode';
   
   // Legacy v1 keys for migration
   static const _keyLegacyTheme = 'theme_mode';
@@ -47,7 +49,22 @@ class PrefsStore {
     _watchlistStore = WatchlistStore();
   }
 
+  Future<void> _loadLanguage() async {
+    final saved = _prefs.getString(_keyLanguage);
+    if (saved == null || saved.isEmpty) {
+      // No saved language -> follow system
+      _languageNotifier.value = 'system';
+    } else if (saved == 'system') {
+      // Explicitly follow system
+      _languageNotifier.value = 'system';
+    } else {
+      // Normalize explicit language code to 'en' or 'vi'
+      _languageNotifier.value = _normalizeLang(saved);
+    }
+  }
+
   ValueListenable<ThemeMode> get themeMode => _themeModeNotifier;
+  ValueListenable<String> get language => _languageNotifier;
   ValueListenable<Portfolio> get portfolio => _portfolioNotifier;
   TradeHistoryStore get tradeHistory => _tradeHistoryStore;
   WatchlistStore get watchlist => _watchlistStore;
@@ -57,6 +74,7 @@ class PrefsStore {
 
     await _checkAndMigrateSchema();
     await _loadThemeMode();
+    await _loadLanguage();
     await _loadPortfolio();
     _tradeHistoryStore.loadFromPrefs(_prefs);
     _watchlistStore.loadFromPrefs(_prefs);
@@ -176,6 +194,11 @@ class PrefsStore {
     await _prefs.setString(_keyThemeMode, modeString);
   }
 
+  Future<void> setLanguage(String code) async {
+    _languageNotifier.value = code;
+    await _prefs.setString(_keyLanguage, code);
+  }
+
   void savePortfolio(Portfolio portfolio) {
     _portfolioNotifier.value = portfolio;
   }
@@ -215,6 +238,7 @@ class PrefsStore {
       _tradeHistoryStore.saveToPrefs(_prefs),
       _watchlistStore.saveToPrefs(_prefs),
       _prefs.setInt(_keyLastTab, getLastSelectedTab()),
+      _prefs.setString(_keyLanguage, _languageNotifier.value),
     ]);
   }
 
@@ -367,6 +391,13 @@ class PrefsStore {
     _themeModeNotifier.removeListener(_onThemeModeChanged);
     _portfolioNotifier.removeListener(_onPortfolioChanged);
     _themeModeNotifier.dispose();
+    _languageNotifier.dispose();
     _portfolioNotifier.dispose();
+  }
+
+  // --- Language helpers ---
+  static String _normalizeLang(String code) {
+    if (code.toLowerCase().startsWith('vi')) return 'vi';
+    return 'en';
   }
 }

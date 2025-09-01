@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n.dart';
 
 class OnboardingCompleteScreen extends StatefulWidget {
   final bool isImporting;
@@ -25,7 +26,7 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to complete onboarding: $e')),
+        SnackBar(content: Text('${AppI18n.tr(context, 'onboarding.complete.error.failed')}: $e')),
       );
       setState(() => _isCompleting = false);
     }
@@ -60,7 +61,9 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
               const SizedBox(height: 32),
               
               Text(
-                'Wallet ${widget.isImporting ? 'Imported' : 'Created'}!',
+                widget.isImporting
+                    ? AppI18n.tr(context, 'onboarding.complete.title.imported')
+                    : AppI18n.tr(context, 'onboarding.complete.title.created'),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.green,
@@ -71,8 +74,8 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
               
               Text(
                 widget.isImporting 
-                    ? 'Your wallet has been successfully imported and is ready to use'
-                    : 'Your new wallet has been created and secured. You\'re ready to start trading!',
+                    ? AppI18n.tr(context, 'onboarding.complete.subtitle.imported')
+                    : AppI18n.tr(context, 'onboarding.complete.subtitle.created'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.grey[600],
@@ -92,7 +95,7 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'What\'s Next?',
+                      AppI18n.tr(context, 'onboarding.complete.whats_next'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.blue,
@@ -103,8 +106,8 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                     _buildNextStep(
                       context,
                       Icons.account_balance_wallet,
-                      'Fund Your Wallet',
-                      'Add BNB or other tokens to start trading',
+                      AppI18n.tr(context, 'onboarding.complete.next.fund.title'),
+                      AppI18n.tr(context, 'onboarding.complete.next.fund.desc'),
                     ),
                     
                     const SizedBox(height: 16),
@@ -112,8 +115,8 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                     _buildNextStep(
                       context,
                       Icons.swap_horiz,
-                      'Start Trading',
-                      'Swap tokens with real-time prices',
+                      AppI18n.tr(context, 'onboarding.complete.next.trade.title'),
+                      AppI18n.tr(context, 'onboarding.complete.next.trade.desc'),
                     ),
                     
                     const SizedBox(height: 16),
@@ -121,8 +124,8 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                     _buildNextStep(
                       context,
                       Icons.trending_up,
-                      'Track Portfolio',
-                      'Monitor your investments and P&L',
+                      AppI18n.tr(context, 'onboarding.complete.next.track.title'),
+                      AppI18n.tr(context, 'onboarding.complete.next.track.desc'),
                     ),
                   ],
                 ),
@@ -152,7 +155,7 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Keep Your Backup Safe',
+                              AppI18n.tr(context, 'onboarding.complete.reminder.title'),
                               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.amber[700],
@@ -160,7 +163,7 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Remember to keep your seed phrase in a safe place. You can access it anytime in Settings.',
+                              AppI18n.tr(context, 'onboarding.complete.reminder.desc'),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Colors.amber[700],
                               ),
@@ -199,12 +202,12 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                         )
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.rocket_launch),
-                            SizedBox(width: 8),
+                          children: [
+                            const Icon(Icons.rocket_launch),
+                            const SizedBox(width: 8),
                             Text(
-                              'Start Trading',
-                              style: TextStyle(
+                              AppI18n.tr(context, 'onboarding.complete.button.start'),
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                               ),

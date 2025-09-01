@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../core/i18n.dart';
 import '../../data/polling_service.dart';
 import '../../domain/logic/portfolio_engine.dart';
 import '../../domain/models/coin.dart';
@@ -9,6 +11,7 @@ import '../shared/widgets/empty_state.dart';
 import '../overview/widgets/summary_header.dart';
 import '../overview/widgets/metrics_strip.dart';
 import 'widgets/holding_item.dart';
+import 'widgets/wert_sessions_list.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final PrefsStore prefsStore;
@@ -29,6 +32,9 @@ class PortfolioScreen extends StatefulWidget {
 class _PortfolioScreenState extends State<PortfolioScreen> {
   List<Coin> _coins = [];
   late Portfolio _portfolio;
+  StreamSubscription<List<Coin>>? _coinsSub;
+  StreamSubscription<Portfolio>? _portfolioSub;
+  VoidCallback? _prefsListener;
   
 
   @override
@@ -41,28 +47,42 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     _setupStreams();
   }
 
+  @override
+  void dispose() {
+    _coinsSub?.cancel();
+    _portfolioSub?.cancel();
+    if (_prefsListener != null) {
+      widget.prefsStore.portfolio.removeListener(_prefsListener!);
+    }
+    super.dispose();
+  }
+
   void _setupStreams() {
-    widget.pollingService.coinsStream.listen((coins) {
+    _coinsSub = widget.pollingService.coinsStream.listen((coins) {
+      if (!mounted) return;
       setState(() {
         _coins = coins;
       });
       _updateWatchedPositions();
     });
 
-    widget.portfolioEngine.portfolioStream.listen((portfolio) {
+    _portfolioSub = widget.portfolioEngine.portfolioStream.listen((portfolio) {
+      if (!mounted) return;
       setState(() {
         _portfolio = portfolio;
       });
       _updateWatchedPositions();
     });
 
-    widget.prefsStore.portfolio.addListener(() {
+    _prefsListener = () {
+      if (!mounted) return;
       final newPortfolio = widget.prefsStore.portfolio.value;
       setState(() {
         _portfolio = newPortfolio;
       });
       _updateWatchedPositions();
-    });
+    };
+    widget.prefsStore.portfolio.addListener(_prefsListener!);
   }
 
   void _updateWatchedPositions() {
@@ -131,7 +151,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Portfolio'),
+        title: Text(AppI18n.tr(context, 'portfolio.title')),
         centerTitle: true,
       ),
       body: Column(
@@ -145,10 +165,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             portfolio: _portfolio,
             currentPrices: _currentPrices,
           ),
+          // Wert recent sessions (from backend)
+          const WertSessionsList(maxItems: 5),
           Expanded(
             child: holdings.isEmpty
-                ? const EmptyState(
-                    message: 'Chưa có coin — vào tab Swap để mua',
+                ? EmptyState(
+                    message: AppI18n.tr(context, 'portfolio.empty'),
                     icon: Icons.account_balance_wallet_outlined,
                   )
                 : ListView.builder(

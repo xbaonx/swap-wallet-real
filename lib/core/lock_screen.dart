@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:developer' as dev;
 import 'auth_guard.dart';
+import 'i18n.dart';
 
 class LockScreen extends StatefulWidget {
   final String reason;
-  const LockScreen({super.key, this.reason = 'Xác thực để tiếp tục'});
+  const LockScreen({super.key, this.reason = ''});
 
   @override
   State<LockScreen> createState() => _LockScreenState();
@@ -38,6 +39,9 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveReason = (widget.reason.isEmpty)
+        ? AppI18n.tr(context, 'auth.reason.continue')
+        : widget.reason;
     return PopScope(
       canPop: false, // chặn back
       child: Scaffold(
@@ -48,13 +52,13 @@ class _LockScreenState extends State<LockScreen> {
               children: [
                 const Icon(Icons.lock, size: 72),
                 const SizedBox(height: 16),
-                const Text(
-                  'Ứng dụng đã khóa',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Text(
+                  AppI18n.tr(context, 'lock.title'),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  widget.reason,
+                  effectiveReason,
                   style: const TextStyle(fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
@@ -62,7 +66,9 @@ class _LockScreenState extends State<LockScreen> {
                 ElevatedButton.icon(
                   onPressed: _authInProgress ? null : _attemptAuth,
                   icon: const Icon(Icons.verified_user),
-                  label: Text(_authInProgress ? 'Đang xác thực...' : 'Xác thực'),
+                  label: Text(_authInProgress
+                      ? AppI18n.tr(context, 'lock.verifying')
+                      : AppI18n.tr(context, 'lock.verify')),
                 ),
               ],
             ),

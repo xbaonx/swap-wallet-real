@@ -10,6 +10,7 @@ import '../../data/token/token_registry.dart';
 import '../../data/portfolio/portfolio_adapter.dart';
 import '../../domain/logic/portfolio_engine.dart';
 import '../../core/errors.dart';
+import '../../core/constants.dart';
 
 enum SwapStatus { pending, confirmed, failed }
 
@@ -128,6 +129,23 @@ class SwapAdapter {
       final fromDecimals = _tokenRegistry.getTokenDecimals(fromSymbol);
       final amountWei = _convertToWei(amount, fromDecimals);
       
+      // Strict on-chain balance check to avoid 1inch HTTP 400 for over-amount
+      BigInt balanceWei;
+      final isNative = _isNativeToken(fromAddress);
+      if (isNative) {
+        balanceWei = await _rpcClient.getBalance(walletAddress);
+      } else {
+        balanceWei = await _rpcClient.getTokenBalance(walletAddress, fromAddress);
+      }
+      // For ERC-20: allow using full token balance. For native: keep tiny 1-wei margin.
+      final allowedMax = isNative
+          ? (balanceWei > BigInt.zero ? balanceWei - BigInt.one : BigInt.zero)
+          : balanceWei;
+      if (amountWei > allowedMax) {
+        final available = _convertFromWei(balanceWei, fromDecimals);
+        throw AppError.networkError('Insufficient $fromSymbol balance. Required: $amount, Available: ${available.toStringAsFixed(8)}');
+      }
+      
       // Check if approval is needed (skip for native BNB)
       if (!_isNativeToken(fromAddress)) {
         final hasAllowance = await _checkAndApprove(
@@ -137,47 +155,71 @@ class SwapAdapter {
         );
         
         if (!hasAllowance) {
-          return TradeExecResult(
-            ok: false,
-            base: toSymbol,
-            qty: 0.0,
-            price: 0.0,
-            usdt: 0.0,
-            feeRate: 0.0,
-            realized: null,
-          );
+          // Should not happen with current _checkAndApprove implementation,
+          // but enforce explicit error to surface to UI if it ever does.
+          throw AppError.allowanceRequired(fromSymbol, 'DEX Router');
         }
       }
 
-      // Build swap transaction
+      // Build swap transaction with referral fee
       final swapResponse = await _inchClient.buildSwapTx(
         fromTokenAddress: fromAddress,
         toTokenAddress: toAddress,
         amountWei: amountWei.toString(),
         fromAddress: walletAddress,
         slippageBps: slippageBps.round(),
+        referrerAddress: AppConstants.referrerAddress,
+        referrerFeePercent: AppConstants.referrerFeePercent,
       );
 
-      // Create transaction
+      // Create transaction (estimate gas/gasPrice if 1inch returned 0)
+      final swapFrom = EthereumAddress.fromHex(swapResponse.tx.from);
+      final swapTo = EthereumAddress.fromHex(swapResponse.tx.to);
+      final swapData = Uint8List.fromList(hex.decode(swapResponse.tx.data.substring(2)));
+      final swapValue = EtherAmount.fromBigInt(EtherUnit.wei, BigInt.parse(swapResponse.tx.value));
+
+      BigInt swapGasPriceWei = BigInt.tryParse(swapResponse.tx.gasPrice) ?? BigInt.zero;
+      if (swapGasPriceWei == BigInt.zero) {
+        final gp = await _rpcClient.getGasPrice();
+        swapGasPriceWei = gp.getInWei;
+      }
+      int swapGasLimit = int.tryParse(swapResponse.tx.gas) ?? 0;
+      if (swapGasLimit == 0) {
+        final est = await _rpcClient.estimateGas(Transaction(
+          from: swapFrom,
+          to: swapTo,
+          value: swapValue,
+          data: swapData,
+        ));
+        final estInt = est.toInt();
+        swapGasLimit = (estInt + (estInt * 2 ~/ 10)).clamp(21000, 2000000);
+      }
+
       final transaction = Transaction(
-        from: EthereumAddress.fromHex(swapResponse.tx.from),
-        to: EthereumAddress.fromHex(swapResponse.tx.to),
-        data: Uint8List.fromList(hex.decode(swapResponse.tx.data.substring(2))),
-        value: EtherAmount.fromBigInt(EtherUnit.wei, BigInt.parse(swapResponse.tx.value)),
-        gasPrice: EtherAmount.fromBigInt(EtherUnit.wei, BigInt.parse(swapResponse.tx.gasPrice)),
-        maxGas: int.parse(swapResponse.tx.gas),
+        from: swapFrom,
+        to: swapTo,
+        data: swapData,
+        value: swapValue,
+        gasPrice: EtherAmount.fromBigInt(EtherUnit.wei, swapGasPriceWei),
+        maxGas: swapGasLimit,
       );
 
       // Sign and send transaction
       final signedTx = await _walletService.signRawTx(transaction, chainId: _bscChainId);
       final txHash = await _rpcClient.sendRawTransaction('0x$signedTx');
 
-      // Calculate output amounts for TradeExecResult
+      // Calculate output amounts (amount of toToken received)
       final toDecimals = _tokenRegistry.getTokenDecimals(toSymbol);
       final outputAmount = _convertFromWei(BigInt.parse(swapResponse.toTokenAmount), toDecimals);
-      
-      // Get current price for the trade record
-      final price = amount > 0 ? outputAmount / amount : 0.0;
+
+      // Determine base (coin symbol), qty (coin amount), usdt amount, and price (USDT per coin)
+      final isBuy = fromSymbol == 'USDT';
+      final baseSymbol = isBuy ? toSymbol : fromSymbol; // Always the coin symbol
+      final coinQty = isBuy ? outputAmount : amount; // BUY: coin received, SELL: coin sold
+      final usdtAmount = (toSymbol == 'USDT') ? outputAmount : amount; // BUY: usdt in, SELL: usdt out
+      final priceUsdtPerCoin = (toSymbol == 'USDT')
+          ? (amount > 0 ? (outputAmount / amount) : 0.0) // SELL: USDT out per coin sold
+          : (outputAmount > 0 ? (amount / outputAmount) : 0.0); // BUY: USDT in per coin received
 
       dev.log('🔍 SWAP ADAPTER: Executed swap $fromSymbol->$toSymbol, tx: $txHash');
 
@@ -189,30 +231,19 @@ class SwapAdapter {
 
       return TradeExecResult(
         ok: true,
-        base: toSymbol,
-        qty: outputAmount,
-        price: price,
-        usdt: fromSymbol == 'USDT' ? amount : outputAmount, // Simplified
-        feeRate: 0.003, // 0.3% typical DEX fee
+        base: baseSymbol,
+        qty: coinQty,
+        price: priceUsdtPerCoin,
+        usdt: usdtAmount,
+        feeRate: AppConstants.tradingFee,
         realized: null,
       );
     } catch (e) {
       dev.log('🔍 SWAP ADAPTER: Swap failed: $e');
-      
-      AppErrorCode errorCode = AppErrorCode.swapFailed;
       if (e is AppError) {
-        errorCode = e.code;
+        rethrow; // propagate specific error to UI
       }
-      
-      return TradeExecResult(
-        ok: false,
-        base: toSymbol,
-        qty: 0.0,
-        price: 0.0,
-        usdt: 0.0,
-        feeRate: 0.0,
-        realized: null,
-      );
+      throw AppError.unknown(e);
     }
   }
 
@@ -243,27 +274,65 @@ class SwapAdapter {
       final approveTx = await _inchClient.buildApproveTx(
         tokenAddress: tokenAddress,
         amountWei: _maxApproveAmount.toString(), // Max approval
+        fromAddress: walletAddress,
         spenderAddress: spender,
       );
       
+      // Prepare approve transaction values and estimate if needed
+      final approveFrom = EthereumAddress.fromHex(approveTx.from);
+      final approveTo = EthereumAddress.fromHex(approveTx.to);
+      final approveData = Uint8List.fromList(hex.decode(approveTx.data.substring(2)));
+      final approveValue = EtherAmount.fromBigInt(EtherUnit.wei, BigInt.parse(approveTx.value));
+
+      BigInt approveGasPriceWei = BigInt.tryParse(approveTx.gasPrice) ?? BigInt.zero;
+      if (approveGasPriceWei == BigInt.zero) {
+        final gp = await _rpcClient.getGasPrice();
+        approveGasPriceWei = gp.getInWei;
+      }
+      int approveGasLimit = int.tryParse(approveTx.gas) ?? 0;
+      if (approveGasLimit == 0) {
+        final est = await _rpcClient.estimateGas(Transaction(
+          from: approveFrom,
+          to: approveTo,
+          value: approveValue,
+          data: approveData,
+        ));
+        // add 20% buffer
+        final estInt = est.toInt();
+        approveGasLimit = (estInt + (estInt * 2 ~/ 10)).clamp(21000, 150000);
+      }
+
       // Create and send approve transaction
       final transaction = Transaction(
-        from: EthereumAddress.fromHex(approveTx.from),
-        to: EthereumAddress.fromHex(approveTx.to),
-        data: Uint8List.fromList(hex.decode(approveTx.data.substring(2))),
-        value: EtherAmount.fromBigInt(EtherUnit.wei, BigInt.parse(approveTx.value)),
-        gasPrice: EtherAmount.fromBigInt(EtherUnit.wei, BigInt.parse(approveTx.gasPrice)),
-        maxGas: int.parse(approveTx.gas),
+        from: approveFrom,
+        to: approveTo,
+        data: approveData,
+        value: approveValue,
+        gasPrice: EtherAmount.fromBigInt(EtherUnit.wei, approveGasPriceWei),
+        maxGas: approveGasLimit,
       );
       
       final signedTx = await _walletService.signRawTx(transaction, chainId: _bscChainId);
       final txHash = await _rpcClient.sendRawTransaction('0x$signedTx');
-      
+
       dev.log('🔍 SWAP ADAPTER: Approve tx sent: $txHash');
-      
-      // Wait for confirmation (simplified - in production, should poll properly)
-      await Future.delayed(const Duration(seconds: 5));
-      
+
+      // Poll for receipt up to ~30s to ensure allowance is active
+      const maxWait = Duration(seconds: 30);
+      const interval = Duration(seconds: 3);
+      final start = DateTime.now();
+      while (DateTime.now().difference(start) < maxWait) {
+        final receipt = await _rpcClient.getReceipt(txHash);
+        if (receipt != null) {
+          final ok = receipt.status == true;
+          if (!ok) {
+            throw AppError.networkError('Approve tx reverted');
+          }
+          break;
+        }
+        await Future.delayed(interval);
+      }
+
       return true;
     } catch (e) {
       dev.log('🔍 SWAP ADAPTER: Approval failed: $e');
@@ -295,6 +364,31 @@ class SwapAdapter {
     return watcher;
   }
 
+  Future<double> getOnchainBalance(String symbol) async {
+    try {
+      if (!_walletService.isInitialized || _walletService.isLocked) {
+        return 0.0;
+      }
+      final walletAddress = await _walletService.getAddress();
+      final tokenAddress = _tokenRegistry.getTokenAddress(symbol);
+      if (tokenAddress == null) {
+        dev.log('SWAP ADAPTER: Token address not found for $symbol');
+        return 0.0;
+      }
+      final decimals = _tokenRegistry.getTokenDecimals(symbol);
+      if (_isNativeToken(tokenAddress)) {
+        final wei = await _rpcClient.getBalance(walletAddress);
+        return _convertFromWei(wei, 18);
+      } else {
+        final bal = await _rpcClient.getTokenBalance(walletAddress, tokenAddress);
+        return _convertFromWei(bal, decimals);
+      }
+    } catch (e) {
+      dev.log('SWAP ADAPTER: getOnchainBalance error for $symbol -> $e');
+      return 0.0;
+    }
+  }
+
   BigInt _convertToWei(double amount, int decimals) {
     final amountStr = amount.toStringAsFixed(decimals);
     final parts = amountStr.split('.');
@@ -317,7 +411,10 @@ class SwapAdapter {
   }
 
   bool _isNativeToken(String address) {
-    return address.toLowerCase() == '0x0000000000000000000000000000000000000000';
+    final a = address.toLowerCase();
+    // Treat both zero address and 0xEeee... as native (BNB on BSC / ETH on ETH)
+    return a == '0x0000000000000000000000000000000000000000' ||
+        a == '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
   }
 
   void dispose() {

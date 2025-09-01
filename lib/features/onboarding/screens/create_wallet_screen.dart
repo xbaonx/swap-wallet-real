@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:ui' show FontFeature;
 import 'dart:developer' as dev;
 import '../../../core/service_locator.dart';
+import '../../../core/i18n.dart';
 
 class CreateWalletScreen extends StatefulWidget {
   final ServiceLocator serviceLocator;
@@ -43,7 +44,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       dev.log('Seed generated: $wc words', name: 'onboarding.ui');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating seed: $e')),
+        SnackBar(content: Text('${AppI18n.tr(context, 'onboarding.create.error.seed_generate')}: $e')),
       );
     }
   }
@@ -61,7 +62,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
         _isCopied = true;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seed phrase copied to clipboard')),
+        SnackBar(content: Text(AppI18n.tr(context, 'onboarding.create.copied_snackbar'))),
       );
     }
   }
@@ -80,7 +81,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: widget.onBack,
         ),
-        title: const Text('Create Wallet'),
+        title: Text(AppI18n.tr(context, 'onboarding.create.appbar')),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -100,14 +101,14 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                       children: [
                         const SizedBox(height: 16),
                         Text(
-                          'Backup Your Wallet',
+                          AppI18n.tr(context, 'onboarding.create.title'),
                           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Write down or copy these 12 words in the exact order shown. This is your recovery phrase.',
+                          AppI18n.tr(context, 'onboarding.create.subtitle'),
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
@@ -132,7 +133,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Tap to reveal your seed phrase',
+                                  AppI18n.tr(context, 'onboarding.create.tap_to_reveal'),
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                         color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                                       ),
@@ -141,7 +142,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                 ElevatedButton.icon(
                                   onPressed: _revealSeed,
                                   icon: const Icon(Icons.visibility),
-                                  label: const Text('Reveal Seed Phrase'),
+                                  label: Text(AppI18n.tr(context, 'onboarding.create.reveal_button')),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Theme.of(context).colorScheme.primary,
                                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -153,7 +154,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                   const Center(child: CircularProgressIndicator()),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Đang tạo seed phrase...',
+                                    AppI18n.tr(context, 'onboarding.create.generating'),
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                           color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                                         ),
@@ -168,7 +169,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                         child: OutlinedButton.icon(
                                           onPressed: _copySeed,
                                           icon: Icon(_isCopied ? Icons.check : Icons.copy),
-                                          label: Text(_isCopied ? 'Copied!' : 'Copy'),
+                                          label: Text(_isCopied ? AppI18n.tr(context, 'onboarding.create.copied') : AppI18n.tr(context, 'onboarding.create.copy')),
                                         ),
                                       ),
                                       const SizedBox(width: 16),
@@ -176,7 +177,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                         child: ElevatedButton.icon(
                                           onPressed: _generateSeed,
                                           icon: const Icon(Icons.refresh),
-                                          label: const Text('New Phrase'),
+                                          label: Text(AppI18n.tr(context, 'onboarding.create.new_phrase')),
                                         ),
                                       ),
                                     ],
@@ -208,7 +209,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Important Security Notice',
+                                      AppI18n.tr(context, 'onboarding.create.security.title'),
                                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                             fontWeight: FontWeight.w600,
                                             color: Colors.red[700],
@@ -216,7 +217,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Never share your seed phrase with anyone. Store it safely offline. Anyone with this phrase can access your wallet.',
+                                      AppI18n.tr(context, 'onboarding.create.security.desc'),
                                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                             color: Colors.red[700],
                                           ),
@@ -242,7 +243,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                               });
                             },
                             title: Text(
-                              'I have safely backed up my seed phrase',
+                              AppI18n.tr(context, 'onboarding.create.checkbox'),
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                             controlAffinity: ListTileControlAffinity.leading,
@@ -263,8 +264,8 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                            child: const Text(
-                              'Continue',
+                            child: Text(
+                              AppI18n.tr(context, 'onboarding.create.continue'),
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
+import '../../../core/i18n.dart';
 
 class BiometricSetupScreen extends StatefulWidget {
   final Function(bool enabled) onBiometricSetup;
@@ -57,7 +58,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: widget.onBack,
         ),
-        title: const Text('Biometric Security'),
+        title: Text(AppI18n.tr(context, 'onboarding.biometric.appbar')),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -86,7 +87,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               const SizedBox(height: 32),
               
               Text(
-                'Secure with Biometrics',
+                AppI18n.tr(context, 'onboarding.biometric.title'),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -95,7 +96,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               const SizedBox(height: 16),
               
               Text(
-                'Use your fingerprint or Face ID for quick and secure access to your wallet',
+                AppI18n.tr(context, 'onboarding.biometric.subtitle'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.grey[600],
@@ -107,24 +108,24 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               // Benefits
               _buildBenefit(
                 Icons.speed,
-                'Quick Access',
-                'Unlock your wallet instantly',
+                AppI18n.tr(context, 'onboarding.biometric.benefit.quick.title'),
+                AppI18n.tr(context, 'onboarding.biometric.benefit.quick.desc'),
               ),
               
               const SizedBox(height: 20),
               
               _buildBenefit(
                 Icons.security,
-                'Enhanced Security',
-                'Biometric data never leaves your device',
+                AppI18n.tr(context, 'onboarding.biometric.benefit.security.title'),
+                AppI18n.tr(context, 'onboarding.biometric.benefit.security.desc'),
               ),
               
               const SizedBox(height: 20),
               
               _buildBenefit(
                 Icons.privacy_tip,
-                'Privacy First',
-                'Your biometric data is stored securely on-device',
+                AppI18n.tr(context, 'onboarding.biometric.benefit.privacy.title'),
+                AppI18n.tr(context, 'onboarding.biometric.benefit.privacy.desc'),
               ),
               
               const Spacer(),
@@ -153,8 +154,8 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                       Expanded(
                         child: Text(
                           _error == null
-                              ? 'Biometric authentication is not available on this device'
-                              : 'Biometric check failed: \n$_error',
+                              ? AppI18n.tr(context, 'onboarding.biometric.not_available')
+                              : '${AppI18n.tr(context, 'onboarding.biometric.check_failed')}: \n$_error',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.orange[700],
                           ),
@@ -184,12 +185,12 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.fingerprint),
-                      SizedBox(width: 8),
+                    children: [
+                      const Icon(Icons.fingerprint),
+                      const SizedBox(width: 8),
                       Text(
-                        'Enable Biometric Security',
-                        style: TextStyle(
+                        AppI18n.tr(context, 'onboarding.biometric.enable_button'),
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
@@ -214,9 +215,9 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                       side: BorderSide(color: Colors.grey[300]!),
                     ),
                   ),
-                  child: const Text(
-                    'Skip for Now',
-                    style: TextStyle(
+                  child: Text(
+                    AppI18n.tr(context, 'onboarding.biometric.skip'),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),

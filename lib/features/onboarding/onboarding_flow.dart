@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import '../../core/service_locator.dart';
 import '../../core/storage.dart';
+import '../../core/i18n.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/wallet_type_screen.dart';
 import 'screens/create_wallet_screen.dart';
@@ -193,7 +194,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       developer.log('FAILED -> $e', name: 'onboarding');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Onboarding failed: $e')),
+          SnackBar(content: Text('${AppI18n.tr(context, 'onboarding.flow.error.failed')}: $e')),
         );
       } else {
         developer.log('Unable to show SnackBar because widget is not mounted', name: 'onboarding');
@@ -242,6 +243,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             onPinSet: _onPinSet,
             onSkip: () => _onPinSet(''), // Empty PIN = skip
             onBack: _previousPage,
+            title: AppI18n.tr(context, 'onboarding.pin.appbar'),
           ),
           
           // 4: Biometric Setup

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../core/i18n.dart';
 import '../../data/polling_service.dart';
 import '../../domain/logic/portfolio_engine.dart';
 import '../../domain/models/coin.dart';
@@ -33,6 +35,9 @@ class _SwapScreenState extends State<SwapScreen> {
   late Portfolio _portfolio;
   String _searchQuery = '';
   SortType _sortType = SortType.volume;
+  StreamSubscription<List<Coin>>? _coinsSub;
+  StreamSubscription<Portfolio>? _portfolioSub;
+  VoidCallback? _prefsListener;
 
 
   @override
@@ -45,7 +50,8 @@ class _SwapScreenState extends State<SwapScreen> {
   }
 
   void _setupStreams() {
-    widget.pollingService.coinsStream.listen((coins) {
+    _coinsSub = widget.pollingService.coinsStream.listen((coins) {
+      if (!mounted) return;
       setState(() {
         // Use only real API data from Binance
         _coins = coins;
@@ -53,17 +59,20 @@ class _SwapScreenState extends State<SwapScreen> {
       });
     });
 
-    widget.portfolioEngine.portfolioStream.listen((portfolio) {
+    _portfolioSub = widget.portfolioEngine.portfolioStream.listen((portfolio) {
+      if (!mounted) return;
       setState(() {
         _portfolio = portfolio;
       });
     });
 
-    widget.prefsStore.portfolio.addListener(() {
+    _prefsListener = () {
+      if (!mounted) return;
       setState(() {
         _portfolio = widget.prefsStore.portfolio.value;
       });
-    });
+    };
+    widget.prefsStore.portfolio.addListener(_prefsListener!);
   }
 
   void _filterAndSort() {
@@ -111,7 +120,7 @@ class _SwapScreenState extends State<SwapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Swap'),
+        title: Text(AppI18n.tr(context, 'swap.title')),
         centerTitle: true,
       ),
       body: Column(
@@ -126,8 +135,8 @@ class _SwapScreenState extends State<SwapScreen> {
           ),
           Expanded(
             child: _filteredCoins.isEmpty
-                ? const EmptyState(
-                    message: 'No coins found',
+                ? EmptyState(
+                    message: AppI18n.tr(context, 'swap.empty'),
                     icon: Icons.search_off,
                   )
                 : ListView.builder(
@@ -146,7 +155,6 @@ class _SwapScreenState extends State<SwapScreen> {
                         prefsStore: widget.prefsStore,
                         rank: index + 1,
                         isExpanded: false,
-                        onTap: () {},
                       );
                     },
                   ),
@@ -158,6 +166,11 @@ class _SwapScreenState extends State<SwapScreen> {
 
   @override
   void dispose() {
+    _coinsSub?.cancel();
+    _portfolioSub?.cancel();
+    if (_prefsListener != null) {
+      widget.prefsStore.portfolio.removeListener(_prefsListener!);
+    }
     _searchController.dispose();
     super.dispose();
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n.dart';
 
 class PinSetupScreen extends StatefulWidget {
   final Function(String pin) onPinSet;
@@ -69,7 +70,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
       widget.onPinSet(_enteredPin);
     } else {
       setState(() {
-        _errorMessage = 'PINs do not match. Please try again.';
+        _errorMessage = AppI18n.tr(context, 'onboarding.pin.error.mismatch');
         _enteredPin = '';
         _confirmPin = '';
         _isConfirmMode = false;
@@ -100,7 +101,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           if (widget.showSkip)
             TextButton(
               onPressed: widget.onSkip,
-              child: const Text('Skip'),
+              child: Text(AppI18n.tr(context, 'onboarding.pin.skip')),
             ),
         ],
       ),
@@ -125,7 +126,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                       ),
                       const SizedBox(height: 24),
                       Text(
-                        _isConfirmMode ? 'Confirm Your PIN' : 'Create Your PIN',
+                        _isConfirmMode
+                            ? AppI18n.tr(context, 'onboarding.pin.title.confirm')
+                            : AppI18n.tr(context, 'onboarding.pin.title.create'),
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -133,8 +136,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                       const SizedBox(height: 12),
                       Text(
                         _isConfirmMode
-                            ? 'Enter your PIN again to confirm'
-                            : 'Create a 6-digit PIN to secure your wallet',
+                            ? AppI18n.tr(context, 'onboarding.pin.subtitle.confirm')
+                            : AppI18n.tr(context, 'onboarding.pin.subtitle.create'),
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
@@ -172,7 +175,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                         const SizedBox(height: 16),
                         TextButton(
                           onPressed: _reset,
-                          child: const Text('Try Again'),
+                          child: Text(AppI18n.tr(context, 'onboarding.pin.try_again')),
                         ),
                       ],
                       const SizedBox(height: 16),

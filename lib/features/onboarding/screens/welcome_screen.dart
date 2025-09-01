@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n.dart';
 
 class WelcomeScreen extends StatelessWidget {
   final VoidCallback onNext;
@@ -41,7 +42,7 @@ class WelcomeScreen extends StatelessWidget {
               
               // Title
               Text(
-                'Welcome to\nCrypto Swap',
+                AppI18n.tr(context, 'onboarding.welcome.title'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
@@ -52,7 +53,7 @@ class WelcomeScreen extends StatelessWidget {
               
               // Subtitle
               Text(
-                'Your secure gateway to decentralized trading on Binance Smart Chain',
+                AppI18n.tr(context, 'onboarding.welcome.subtitle'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.grey[600],
@@ -65,8 +66,8 @@ class WelcomeScreen extends StatelessWidget {
               _buildFeature(
                 context,
                 Icons.security,
-                'Secure',
-                'Your keys, your crypto. Non-custodial security.',
+                AppI18n.tr(context, 'onboarding.welcome.feature_secure.title'),
+                AppI18n.tr(context, 'onboarding.welcome.feature_secure.desc'),
               ),
               
               const SizedBox(height: 16),
@@ -74,8 +75,8 @@ class WelcomeScreen extends StatelessWidget {
               _buildFeature(
                 context,
                 Icons.swap_horiz,
-                'Fast Swaps',
-                'Trade tokens instantly with 1inch integration.',
+                AppI18n.tr(context, 'onboarding.welcome.feature_fast_swaps.title'),
+                AppI18n.tr(context, 'onboarding.welcome.feature_fast_swaps.desc'),
               ),
               
               const SizedBox(height: 16),
@@ -83,8 +84,8 @@ class WelcomeScreen extends StatelessWidget {
               _buildFeature(
                 context,
                 Icons.trending_up,
-                'Real-time Data',
-                'Live prices and portfolio tracking.',
+                AppI18n.tr(context, 'onboarding.welcome.feature_realtime.title'),
+                AppI18n.tr(context, 'onboarding.welcome.feature_realtime.desc'),
               ),
               
               const Spacer(),
@@ -103,9 +104,9 @@ class WelcomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'Get Started',
-                    style: TextStyle(
+                  child: Text(
+                    AppI18n.tr(context, 'onboarding.welcome.get_started'),
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -117,7 +118,7 @@ class WelcomeScreen extends StatelessWidget {
               
               // Disclaimer
               Text(
-                'By continuing, you agree to our Terms of Service and Privacy Policy',
+                AppI18n.tr(context, 'onboarding.welcome.disclaimer'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.grey[500],

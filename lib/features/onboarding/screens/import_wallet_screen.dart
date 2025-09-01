@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/service_locator.dart';
+import '../../../core/i18n.dart';
 
 class ImportWalletScreen extends StatefulWidget {
   final ServiceLocator serviceLocator;
@@ -51,17 +52,17 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
         // Import from seed phrase
         final seedText = _seedController.text.trim().toLowerCase();
         if (seedText.isEmpty) {
-          throw Exception('Please enter your seed phrase');
+          throw Exception(AppI18n.tr(context, 'onboarding.import.error.enter_seed'));
         }
         
         final words = seedText.split(RegExp(r'\s+'));
         if (words.length != 12 && words.length != 24) {
-          throw Exception('Seed phrase must be 12 or 24 words');
+          throw Exception(AppI18n.tr(context, 'onboarding.import.error.seed_12_24'));
         }
         
         // Validate seed phrase format
         if (!widget.serviceLocator.walletService.validateMnemonic(seedText)) {
-          throw Exception('Invalid seed phrase');
+          throw Exception(AppI18n.tr(context, 'onboarding.import.error.invalid_seed'));
         }
         
         // ACTUALLY IMPORT the wallet from mnemonic
@@ -72,7 +73,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
         // Import from private key
         final privateKey = _privateKeyController.text.trim();
         if (privateKey.isEmpty) {
-          throw Exception('Please enter your private key');
+          throw Exception(AppI18n.tr(context, 'onboarding.import.error.enter_pk'));
         }
         
         // Validate private key format (64 hex chars, with or without 0x prefix)
@@ -82,7 +83,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
         }
         
         if (cleanKey.length != 64 || !RegExp(r'^[0-9a-f]+$').hasMatch(cleanKey)) {
-          throw Exception('Invalid private key format');
+          throw Exception(AppI18n.tr(context, 'onboarding.import.error.invalid_pk'));
         }
         
         // ACTUALLY IMPORT the wallet from private key
@@ -95,7 +96,8 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
       widget.onSeedImported(seed);
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        final msg = e.toString();
+        _errorMessage = msg.startsWith('Exception: ') ? msg.substring('Exception: '.length) : msg;
       });
     } finally {
       setState(() {
@@ -112,7 +114,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: widget.onBack,
         ),
-        title: const Text('Import Wallet'),
+        title: Text(AppI18n.tr(context, 'onboarding.import.appbar')),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -124,7 +126,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                 const SizedBox(height: 16),
               
                 Text(
-                  'Restore Your Wallet',
+                  AppI18n.tr(context, 'onboarding.import.title'),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -133,7 +135,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                 const SizedBox(height: 16),
               
                 Text(
-                  'Enter your seed phrase or private key to restore your existing wallet',
+                  AppI18n.tr(context, 'onboarding.import.subtitle'),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Colors.grey[600],
@@ -160,7 +162,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Seed Phrase',
+                            AppI18n.tr(context, 'onboarding.import.toggle.seed'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
@@ -180,7 +182,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Private Key',
+                            AppI18n.tr(context, 'onboarding.import.toggle.private'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
@@ -202,8 +204,8 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                     controller: _seedController,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      labelText: 'Seed Phrase',
-                      hintText: 'Enter your 12 or 24 word seed phrase',
+                      labelText: AppI18n.tr(context, 'onboarding.import.input.seed.label'),
+                      hintText: AppI18n.tr(context, 'onboarding.import.input.seed.hint'),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -216,8 +218,8 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                   TextField(
                     controller: _privateKeyController,
                     decoration: InputDecoration(
-                      labelText: 'Private Key',
-                      hintText: 'Enter your private key (with or without 0x prefix)',
+                      labelText: AppI18n.tr(context, 'onboarding.import.input.private.label'),
+                      hintText: AppI18n.tr(context, 'onboarding.import.input.private.hint'),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -252,7 +254,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Security Notice',
+                            AppI18n.tr(context, 'onboarding.import.security.title'),
                             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: Colors.amber[700],
@@ -260,7 +262,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Make sure you\'re in a secure environment. Your seed phrase or private key gives full access to your wallet.',
+                            AppI18n.tr(context, 'onboarding.import.security.desc'),
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.amber[700],
                             ),
@@ -297,8 +299,8 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : const Text(
-                            'Import Wallet',
+                        : Text(
+                            AppI18n.tr(context, 'onboarding.import.button'),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,

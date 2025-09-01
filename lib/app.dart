@@ -1,6 +1,8 @@
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/theme.dart';
+import 'core/i18n.dart';
 import 'core/lifecycle.dart';
 import 'core/service_locator.dart';
 import 'core/storage.dart';
@@ -61,6 +63,15 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> with WidgetsBindingObserv
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeRequireInitialLock());
   }
 
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    super.didChangeLocales(locales);
+    // Nếu đang theo hệ thống, khi hệ thống đổi locale thì rebuild để cập nhật chuỗi AppI18n.trByCode(...)
+    if (widget.prefsStore.language.value == 'system') {
+      setState(() {});
+    }
+  }
+
   void _onSignOut() {
     developer.log('Sign out callback received → switching to onboarding', name: 'app');
     // Reset UI state and show onboarding again
@@ -95,7 +106,7 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> with WidgetsBindingObserv
 
   Future<void> _maybeRequireInitialLock() async {
     if (!mounted || _needsOnboarding) return;
-    await _maybeRequireLock(reason: 'Xác thực để tiếp tục');
+    await _maybeRequireLock(reason: AppI18n.tr(context, 'auth.reason.continue'));
   }
 
   Future<void> _maybeRequireLock({required String reason}) async {
@@ -135,7 +146,7 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> with WidgetsBindingObserv
         developer.log('App resumed (wasBackground=$_wasBackground)', name: 'app');
         if (_wasBackground && !_needsOnboarding) {
           _wasBackground = false;
-          _maybeRequireLock(reason: 'Xác thực để tiếp tục');
+          _maybeRequireLock(reason: AppI18n.tr(context, 'auth.reason.continue'));
         }
         break;
       case AppLifecycleState.paused:
@@ -188,13 +199,23 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> with WidgetsBindingObserv
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: widget.prefsStore.themeMode,
       builder: (context, themeMode, child) {
-        return MaterialApp(
-          title: 'BSC Wallet',
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeMode,
-          navigatorKey: _navigatorKey,
-          home: _needsOnboarding
+        return ValueListenableBuilder<String>(
+          valueListenable: widget.prefsStore.language,
+          builder: (context, langCode, _) {
+            return MaterialApp(
+              title: AppI18n.trByCode(langCode, 'app.title'),
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: themeMode,
+              navigatorKey: _navigatorKey,
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: const [Locale('en'), Locale('vi')],
+              locale: langCode == 'system' ? null : Locale(langCode),
+              home: _needsOnboarding
               ? OnboardingFlow(
                   serviceLocator: widget.serviceLocator,
                   onComplete: _onOnboardingComplete,
@@ -222,25 +243,27 @@ class _CryptoSwapAppState extends State<CryptoSwapApp> with WidgetsBindingObserv
                   ),
                   bottomNavigationBar: BottomNavigationBar(
                     type: BottomNavigationBarType.fixed,
-                    items: const [
+                    items: [
                       BottomNavigationBarItem(
-                        icon: Icon(Icons.account_balance_wallet),
-                        label: 'Portfolio',
+                        icon: const Icon(Icons.account_balance_wallet),
+                        label: AppI18n.trByCode(langCode, 'nav.portfolio'),
                       ),
                       BottomNavigationBarItem(
-                        icon: Icon(Icons.swap_horiz),
-                        label: 'Swap',
+                        icon: const Icon(Icons.swap_horiz),
+                        label: AppI18n.trByCode(langCode, 'nav.swap'),
                       ),
                       BottomNavigationBarItem(
-                        icon: Icon(Icons.settings),
-                        label: 'Settings',
+                        icon: const Icon(Icons.settings),
+                        label: AppI18n.trByCode(langCode, 'nav.settings'),
                       ),
                     ],
                     currentIndex: _selectedIndex,
                     onTap: _onItemTapped,
                   ),
                 ),
-          debugShowCheckedModeBanner: false,
+              debugShowCheckedModeBanner: false,
+            );
+          },
         );
       },
     );

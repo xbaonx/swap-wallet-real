@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
+import '../../../core/service_locator.dart';
 import '../../../core/colors.dart';
 import '../../../core/constants.dart';
 import '../../../core/format.dart';
+import '../../../core/i18n.dart';
 import '../../../domain/logic/portfolio_engine.dart';
 import '../../../domain/models/coin.dart';
 import '../../../domain/models/portfolio.dart';
@@ -44,8 +47,21 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
   }
 
   void _setQuickPercentage(int percentage) {
-    final amount = (widget.position.qty * percentage / 100);
-    _controller.text = amount.toStringAsFixed(6);
+    final registry = ServiceLocator().tokenRegistry;
+    final token = registry.getBySymbol(widget.coin.base);
+    final tokenAddress = registry.getTokenAddress(widget.coin.base) ?? '';
+    final isNative = tokenAddress.toLowerCase() == '0x0000000000000000000000000000000000000000' ||
+        tokenAddress.toLowerCase() == '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+    final decimals = token?.decimals ?? 18;
+    final oneWeiUnit = 1.0 / math.pow(10, decimals);
+    const displayDecimals = 6;
+    double target = (widget.position.qty * percentage / 100);
+    if (percentage == 100 && isNative) {
+      target = (widget.position.qty - oneWeiUnit).clamp(0.0, widget.position.qty).toDouble();
+    }
+    final m = math.pow(10, displayDecimals).toDouble();
+    final floored = (target * m).floor() / m;
+    _controller.text = floored.toStringAsFixed(displayDecimals);
     _onInputChanged();
   }
 
@@ -57,7 +73,9 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
     if (_inputAmount <= 0) return '';
     
     final usdtOut = (_inputAmount * widget.coin.bid) * (1 - AppConstants.tradingFee);
-    return 'Nhận ~ \$${AppFormat.formatUsdt(usdtOut)} USDT (sau phí)';
+    final receive = AppI18n.tr(context, 'portfolio.sell.estimate.receive');
+    final afterFee = AppI18n.tr(context, 'portfolio.sell.estimate.after_fee');
+    return '$receive \$${AppFormat.formatUsdt(usdtOut)} USDT $afterFee';
   }
 
   void _executeSell() async {
@@ -81,8 +99,8 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
     HapticFeedback.lightImpact();
     
     final message = result.ok 
-        ? 'Sold ${AppFormat.formatCoin(result.qty)} ${result.base} for \$${AppFormat.formatUsdt(result.usdt)}'
-        : 'Sell order failed';
+        ? '${AppI18n.tr(context, 'portfolio.sell.snackbar.sold')} ${AppFormat.formatCoin(result.qty)} ${result.base} ${AppI18n.tr(context, 'portfolio.sell.snackbar.for')} \$${AppFormat.formatUsdt(result.usdt)}'
+        : AppI18n.tr(context, 'portfolio.sell.snackbar.fail');
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -123,7 +141,7 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
               ),
               const SizedBox(width: 8),
               Text(
-                'Bán ${widget.coin.base}',
+                '${AppI18n.tr(context, 'portfolio.sell.title')} ${widget.coin.base}',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.danger,
@@ -150,7 +168,7 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Khả dụng:',
+                  AppI18n.tr(context, 'portfolio.sell.available'),
                   style: theme.textTheme.bodyMedium,
                 ),
                 Text(
@@ -170,13 +188,13 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
             controller: _controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: '${widget.coin.base} Amount',
+              labelText: '${widget.coin.base} ${AppI18n.tr(context, 'portfolio.sell.input.amount')}',
               suffixText: widget.coin.base,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               errorText: _inputAmount > widget.position.qty 
-                  ? 'Vượt quá số lượng khả dụng' 
+                  ? AppI18n.tr(context, 'portfolio.sell.input.error.exceed') 
                   : null,
             ),
             style: theme.textTheme.headlineSmall,
@@ -194,7 +212,7 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
                   ),
                   child: OutlinedButton(
                     onPressed: () => _setQuickPercentage(percentage),
-                    child: Text(percentage == 100 ? 'Max' : '$percentage%'),
+                    child: Text(percentage == 100 ? AppI18n.tr(context, 'portfolio.sell.quick.max') : '$percentage%'),
                   ),
                 ),
               );
@@ -205,7 +223,7 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
           
           // Fee info
           Text(
-            'Bán dùng bid • Phí ${(AppConstants.tradingFee * 100).toStringAsFixed(1)}%',
+            '${AppI18n.tr(context, 'portfolio.sell.fee_info.sell_using_bid')} • ${AppI18n.tr(context, 'portfolio.sell.fee_info.fee')} ${(AppConstants.tradingFee * 100).toStringAsFixed(1)}%',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
             ),
@@ -244,7 +262,7 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
                 backgroundColor: AppColors.danger,
               ),
               child: Text(
-                'Bán ${widget.coin.base}',
+                '${AppI18n.tr(context, 'portfolio.sell.button')} ${widget.coin.base}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

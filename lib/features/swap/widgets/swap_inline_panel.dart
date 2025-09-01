@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../../core/colors.dart';
 import '../../../core/constants.dart';
 import '../../../core/format.dart';
+import '../../../core/i18n.dart';
 import '../../../domain/logic/portfolio_engine.dart';
 import '../../../domain/models/coin.dart';
 import '../../../domain/models/portfolio.dart';
@@ -80,10 +81,10 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
     
     if (_isBuying) {
       final coinRecv = (_inputAmount / widget.coin.ask) * (1 - AppConstants.tradingFee);
-      return 'Nhận ~ ${AppFormat.formatCoin(coinRecv)} ${widget.coin.base} (sau phí)';
+      return '${AppI18n.tr(context, 'trade.estimate.receive_prefix')} ${AppFormat.formatCoin(coinRecv)} ${widget.coin.base} ${AppI18n.tr(context, 'trade.estimate.after_fee')}';
     } else {
       final usdtOut = (_inputAmount * widget.coin.bid) * (1 - AppConstants.tradingFee);
-      return 'Nhận ~ \$${AppFormat.formatUsdt(usdtOut)} USDT (sau phí)';
+      return '${AppI18n.tr(context, 'trade.estimate.receive_prefix')} ${AppFormat.formatUsdt(usdtOut)} USDT ${AppI18n.tr(context, 'trade.estimate.after_fee')}';
     }
   }
 
@@ -108,8 +109,8 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
       HapticFeedback.lightImpact();
       
       final message = result.ok 
-          ? 'Bought ${result.base} for \$${AppFormat.formatUsdt(result.usdt)}'
-          : 'Buy order failed';
+          ? '${AppI18n.tr(context, 'trade.snackbar.bought_prefix')} ${result.base} ${AppI18n.tr(context, 'trade.snackbar.for')} ${AppFormat.formatUsdt(result.usdt)} USDT'
+          : AppI18n.tr(context, 'trade.snackbar.buy_failed');
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -136,8 +137,8 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
       HapticFeedback.lightImpact();
       
       final message = result.ok 
-          ? 'Sold ${AppFormat.formatCoin(result.qty)} ${result.base}'
-          : 'Sell order failed';
+          ? '${AppI18n.tr(context, 'trade.snackbar.sold_prefix')} ${AppFormat.formatCoin(result.qty)} ${result.base}'
+          : AppI18n.tr(context, 'trade.snackbar.sell_failed');
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -202,7 +203,7 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
             controller: _controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: _isBuying ? 'USDT Amount' : '${widget.coin.base} Amount',
+              labelText: _isBuying ? AppI18n.tr(context, 'trade.input.amount_usdt') : AppI18n.tr(context, 'trade.input.amount_coin'),
               prefixText: _isBuying ? '\$ ' : '',
               suffixText: _isBuying ? 'USDT' : widget.coin.base,
               border: OutlineInputBorder(
@@ -224,7 +225,7 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
                   ),
                   child: OutlinedButton(
                     onPressed: () => _setQuickPercentage(percentage),
-                    child: Text(percentage == 100 ? 'Max' : '$percentage%'),
+                    child: Text(percentage == 100 ? AppI18n.tr(context, 'trade.quick.max') : '$percentage%'),
                   ),
                 ),
               );
@@ -235,7 +236,7 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
           
           // Fee info
           Text(
-            'Mua dùng ask, bán dùng bid • Phí ${(AppConstants.tradingFee * 100).toStringAsFixed(1)}%',
+            '${AppI18n.tr(context, 'trade.fee_info.buy_using_ask')}, ${AppI18n.tr(context, 'trade.fee_info.sell_using_bid')} • ${AppI18n.tr(context, 'trade.fee')} ${(AppConstants.tradingFee * 100).toStringAsFixed(1)}%',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
             ),
@@ -274,7 +275,7 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
                 backgroundColor: _isBuying ? AppColors.success : AppColors.danger,
               ),
               child: Text(
-                _isBuying ? 'Mua ${widget.coin.base}' : 'Bán ${widget.coin.base}',
+                _isBuying ? '${AppI18n.tr(context, 'trade.buy')} ${widget.coin.base}' : '${AppI18n.tr(context, 'trade.sell')} ${widget.coin.base}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

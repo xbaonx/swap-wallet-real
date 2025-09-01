@@ -52,6 +52,40 @@ const Map<String, String> kSymbolAliases = {
   'eosup': 'eos',
 };
 
+/// Subset of symbols whose bundled asset is PNG (no SVG available in assets/)
+const Set<String> kLocalPngKeys = {
+  '1000cat',
+  '1000cheems',
+  '1000sats',
+  '1inchdown',
+  '1inchup',
+  '1mbabydoge',
+  'a',
+  'a2z',
+  'aavedown',
+  'aaveup',
+  'aca',
+  'ace',
+  'ach',
+  'acm',
+  'acx',
+  'adadown',
+  'adaup',
+  'aergo',
+  'aevo',
+  'agix',
+  'agld',
+  'ai',
+  'aixbt',
+  'akro',
+  'alcx',
+  'alice',
+  'alpaca',
+  'alpha',
+  'alpine',
+  'alt',
+};
+
 String normalizeSymbol(String base) {
   final s = base.toLowerCase();
   return kSymbolAliases[s] ?? s;
@@ -60,16 +94,17 @@ String normalizeSymbol(String base) {
 /// Trả về path asset nếu có trong bundle, ngược lại null.
 String? localLogoAsset(String base) {
   final key = normalizeSymbol(base);
+  // Prefer PNG when the asset only exists as PNG in bundle
+  if (kLocalPngKeys.contains(key)) {
+    return 'assets/logos/$key.png';
+  }
   if (kLocalLogoKeys.contains(key)) {
-    // Ưu tiên SVG nếu có
+    // Default to SVG for the majority of icons present as SVG
     return 'assets/logos/$key.svg';
   }
-  
-  // Kiểm tra PNG cho các coin mới tải
-  final pngPath = 'assets/logos/$key.png';
-  // Giả định rằng nếu không có trong kLocalLogoKeys thì có thể có PNG
-  // (trong thực tế Flutter sẽ kiểm tra file tồn tại)
-  return pngPath;
+  // Nếu không nằm trong danh sách asset nội bộ, trả về null để dùng CDN/fallback
+  // Tránh trả về đường dẫn PNG không tồn tại gây lỗi "Unable to load asset"
+  return null;
 }
 
 /// URL CDN cho PNG 128px từ repo spothq/cryptocurrency-icons (MIT)

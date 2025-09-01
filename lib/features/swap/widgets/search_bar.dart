@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/i18n.dart';
 import '../swap_screen.dart';
 
 class CryptoSearchBar extends StatelessWidget {
@@ -30,7 +31,7 @@ class CryptoSearchBar extends StatelessWidget {
               controller: controller,
               onChanged: onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Search coins...',
+                hintText: AppI18n.tr(context, 'search.hint'),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: controller.text.isNotEmpty
                     ? IconButton(
@@ -56,26 +57,26 @@ class CryptoSearchBar extends StatelessWidget {
             initialValue: sortType,
             onSelected: onSortChanged,
             icon: const Icon(Icons.sort),
-            tooltip: 'Sort',
+            tooltip: AppI18n.tr(context, 'search.sort'),
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: SortType.volume,
-                child: Text('Volume 24h'),
+                child: Text(AppI18n.tr(context, 'search.sort.volume24h')),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: SortType.percent24h,
-                child: Text('% Change 24h'),
+                child: Text(AppI18n.tr(context, 'search.sort.percent24h')),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: SortType.alphabetical,
-                child: Text('A → Z'),
+                child: Text(AppI18n.tr(context, 'search.sort.az')),
               ),
             ],
           ),
           IconButton(
             onPressed: onRefresh,
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: AppI18n.tr(context, 'common.refresh'),
           ),
         ],
       ),

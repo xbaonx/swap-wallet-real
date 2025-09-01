@@ -11,6 +11,7 @@ abstract class IRpcClient {
   Future<BigInt> getBalance(String address);
   Future<BigInt> getTokenBalance(String address, String tokenAddress);
   Future<int> getNonce(String address);
+  Future<EtherAmount> getGasPrice();
   Future<BigInt> estimateGas(Transaction tx);
   Future<String> sendRawTransaction(String signedHex);
   Future<TransactionReceipt?> getReceipt(String txHash);
@@ -73,6 +74,13 @@ class RpcClient implements IRpcClient {
     return _withFallback(() async {
       final ethAddress = EthereumAddress.fromHex(address);
       return await _currentClient.getTransactionCount(ethAddress);
+    });
+  }
+
+  @override
+  Future<EtherAmount> getGasPrice() async {
+    return _withFallback(() async {
+      return await _currentClient.getGasPrice();
     });
   }
 

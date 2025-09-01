@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/i18n.dart';
 import 'package:flutter/services.dart';
 import 'dart:developer' as dev;
 import '../../core/service_locator.dart';
@@ -33,6 +34,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _settingsService = SettingsService(widget.serviceLocator.prefs);
   }
 
+  void _selectLanguage() {
+    showDialog(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(AppI18n.tr(context, 'settings.language')),
+        children: [
+          SimpleDialogOption(
+            onPressed: () async {
+              await widget.prefsStore.setLanguage('system');
+              if (mounted) Navigator.pop(context);
+              setState(() {});
+            },
+            child: Text(AppI18n.tr(context, 'settings.language.system')),
+          ),
+          SimpleDialogOption(
+            onPressed: () async {
+              await widget.prefsStore.setLanguage('en');
+              if (mounted) Navigator.pop(context);
+              setState(() {});
+            },
+            child: Text(AppI18n.tr(context, 'settings.language.en')),
+          ),
+          SimpleDialogOption(
+            onPressed: () async {
+              await widget.prefsStore.setLanguage('vi');
+              if (mounted) Navigator.pop(context);
+              setState(() {});
+            },
+            child: Text(AppI18n.tr(context, 'settings.language.vi')),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAppearanceSection() {
     return Card(
       child: Padding(
@@ -41,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Appearance',
+              AppI18n.tr(context, 'settings.appearance'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -52,10 +88,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               builder: (context, mode, _) {
                 return ListTile(
                   leading: const Icon(Icons.brightness_6),
-                  title: const Text('Theme'),
+                  title: Text(AppI18n.tr(context, 'settings.theme')),
                   subtitle: Text(_themeLabel(mode)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _selectThemeMode,
+                  contentPadding: EdgeInsets.zero,
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            ValueListenableBuilder<String>(
+              valueListenable: widget.prefsStore.language,
+              builder: (context, lang, _) {
+                String key;
+                if (lang == 'system') {
+                  key = 'settings.language.system';
+                } else if (lang == 'vi') {
+                  key = 'settings.language.vi';
+                } else {
+                  key = 'settings.language.en';
+                }
+                return ListTile(
+                  leading: const Icon(Icons.language),
+                  title: Text(AppI18n.tr(context, 'settings.language')),
+                  subtitle: Text(AppI18n.tr(context, key)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _selectLanguage,
                   contentPadding: EdgeInsets.zero,
                 );
               },
@@ -84,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('⚠️ Tuyệt đối không chia sẻ thông tin này với bất kỳ ai.'),
+            Text(AppI18n.tr(context, 'sensitive.warning')),
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
@@ -100,9 +158,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             if (isSeed)
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text('Gợi ý: Hãy ghi lại seed phrase ra giấy và cất giữ an toàn.'),
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(AppI18n.tr(context, 'seed.hint')),
               ),
           ],
         ),
@@ -112,11 +170,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _copyToClipboard(value);
               Navigator.pop(context);
             },
-            child: const Text('Sao chép & Đóng'),
+            child: Text(AppI18n.tr(context, 'common.copy_close')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
+            child: Text(AppI18n.tr(context, 'common.close')),
           ),
         ],
       ),
@@ -128,11 +186,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _themeLabel(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.light:
-        return 'Light';
+        return AppI18n.tr(context, 'settings.theme.light');
       case ThemeMode.dark:
-        return 'Dark';
+        return AppI18n.tr(context, 'settings.theme.dark');
       case ThemeMode.system:
-        return 'System';
+        return AppI18n.tr(context, 'settings.theme.system');
     }
   }
 
@@ -140,7 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Select Theme'),
+        title: Text(AppI18n.tr(context, 'settings.theme.select')),
         children: [
           SimpleDialogOption(
             onPressed: () {
@@ -148,7 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(context);
               setState(() {});
             },
-            child: const Text('System'),
+            child: Text(AppI18n.tr(context, 'settings.theme.system')),
           ),
           SimpleDialogOption(
             onPressed: () {
@@ -156,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(context);
               setState(() {});
             },
-            child: const Text('Light'),
+            child: Text(AppI18n.tr(context, 'settings.theme.light')),
           ),
           SimpleDialogOption(
             onPressed: () {
@@ -164,7 +222,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(context);
               setState(() {});
             },
-            child: const Text('Dark'),
+            child: Text(AppI18n.tr(context, 'settings.theme.dark')),
           ),
         ],
       ),
@@ -175,7 +233,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(AppI18n.tr(context, 'settings.title')),
         centerTitle: true,
       ),
       body: ListView(
@@ -205,7 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Wallet',
+              AppI18n.tr(context, 'settings.wallet'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -219,10 +277,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 final address = snapshot.data;
                 return ListTile(
                   leading: const Icon(Icons.account_balance_wallet),
-                  title: const Text('Current Address'),
+                  title: Text(AppI18n.tr(context, 'settings.current_address')),
                   subtitle: address != null 
                       ? Text('${address.substring(0, 6)}...${address.substring(address.length - 4)}')
-                      : const Text('No wallet connected'),
+                      : Text(AppI18n.tr(context, 'settings.no_wallet')),
                   trailing: address != null 
                       ? IconButton(
                           icon: const Icon(Icons.copy),
@@ -237,8 +295,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Backup Seed
             ListTile(
               leading: const Icon(Icons.backup),
-              title: const Text('Backup Seed Phrase'),
-              subtitle: const Text('View your recovery phrase'),
+              title: Text(AppI18n.tr(context, 'settings.backup_seed')),
+              subtitle: Text(AppI18n.tr(context, 'settings.backup_seed.subtitle')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showBackupSeed(),
               contentPadding: EdgeInsets.zero,
@@ -247,8 +305,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Export Private Key
             ListTile(
               leading: const Icon(Icons.key),
-              title: const Text('Export Private Key'),
-              subtitle: const Text('Export wallet private key'),
+              title: Text(AppI18n.tr(context, 'settings.export_pk')),
+              subtitle: Text(AppI18n.tr(context, 'settings.export_pk.subtitle')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _exportPrivateKey(),
               contentPadding: EdgeInsets.zero,
@@ -257,8 +315,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Sign out & remove wallet
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Đăng xuất & Xóa ví', style: TextStyle(color: Colors.red)),
-              subtitle: const Text('Xóa ví, PIN và sinh trắc học khỏi thiết bị này'),
+              title: Text(AppI18n.tr(context, 'settings.sign_out'), style: const TextStyle(color: Colors.red)),
+              subtitle: Text(AppI18n.tr(context, 'settings.sign_out.subtitle')),
               trailing: const Icon(Icons.chevron_right),
               onTap: _signOut,
               contentPadding: EdgeInsets.zero,
@@ -277,7 +335,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Security',
+              AppI18n.tr(context, 'settings.security'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -287,8 +345,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Set PIN
             ListTile(
               leading: const Icon(Icons.pin),
-              title: const Text('Change PIN'),
-              subtitle: const Text('Set or change your PIN code'),
+              title: Text(AppI18n.tr(context, 'settings.change_pin')),
+              subtitle: Text(AppI18n.tr(context, 'settings.change_pin.subtitle')),
               trailing: const Icon(Icons.chevron_right),
               onTap: _changePIN,
               contentPadding: EdgeInsets.zero,
@@ -301,8 +359,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 final isEnabled = snapshot.data ?? false;
                 return SwitchListTile(
                   secondary: const Icon(Icons.fingerprint),
-                  title: const Text('Biometric Unlock'),
-                  subtitle: const Text('Use fingerprint or Face ID'),
+                  title: Text(AppI18n.tr(context, 'settings.biometric')),
+                  subtitle: Text(AppI18n.tr(context, 'settings.biometric.subtitle')),
                   value: isEnabled,
                   onChanged: _toggleBiometric,
                   contentPadding: EdgeInsets.zero,
@@ -323,7 +381,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Network & RPC',
+              AppI18n.tr(context, 'settings.network_rpc'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -333,7 +391,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Network Selection
             ListTile(
               leading: const Icon(Icons.lan),
-              title: const Text('Network'),
+              title: Text(AppI18n.tr(context, 'settings.network')),
               subtitle: Text(_getNetworkDisplayName(_settingsService.selectedNetwork)),
               trailing: const Icon(Icons.chevron_right),
               onTap: _selectNetwork,
@@ -343,8 +401,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Custom RPC
             ListTile(
               leading: const Icon(Icons.dns),
-              title: const Text('Custom RPC URL'),
-              subtitle: Text(_settingsService.customRpcUrl ?? 'Using default'),
+              title: Text(AppI18n.tr(context, 'settings.custom_rpc')),
+              subtitle: Text(_settingsService.customRpcUrl ?? AppI18n.tr(context, 'settings.custom_rpc.default')),
               trailing: const Icon(Icons.chevron_right),
               onTap: _setCustomRPC,
               contentPadding: EdgeInsets.zero,
@@ -353,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Current Active RPC
             ListTile(
               leading: const Icon(Icons.public),
-              title: const Text('Active RPC'),
+              title: Text(AppI18n.tr(context, 'settings.active_rpc')),
               subtitle: Text(_settingsService.getCurrentRpcUrl()),
               contentPadding: EdgeInsets.zero,
             ),
@@ -371,7 +429,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Swap Settings',
+              AppI18n.tr(context, 'settings.swap_settings'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -381,7 +439,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Slippage
             ListTile(
               leading: const Icon(Icons.trending_down),
-              title: const Text('Slippage Tolerance'),
+              title: Text(AppI18n.tr(context, 'settings.slippage')),
               subtitle: Text('${_settingsService.slippage}%'),
               trailing: const Icon(Icons.chevron_right),
               onTap: _setSlippage,
@@ -391,8 +449,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Deadline
             ListTile(
               leading: const Icon(Icons.timer),
-              title: const Text('Transaction Deadline'),
-              subtitle: Text('${_settingsService.deadline} minutes'),
+              title: Text(AppI18n.tr(context, 'settings.deadline')),
+              subtitle: Text('${_settingsService.deadline} ${AppI18n.tr(context, 'settings.minutes')}'),
               trailing: const Icon(Icons.chevron_right),
               onTap: _setDeadline,
               contentPadding: EdgeInsets.zero,
@@ -411,7 +469,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Other',
+              AppI18n.tr(context, 'settings.other'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -419,18 +477,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 16),
             
             // App Version
-            const ListTile(
-              leading: Icon(Icons.info),
-              title: Text('App Version'),
-              subtitle: Text('1.0.0'),
+            ListTile(
+              leading: const Icon(Icons.info),
+              title: Text(AppI18n.tr(context, 'settings.app_version')),
+              subtitle: const Text('1.0.0'),
               contentPadding: EdgeInsets.zero,
             ),
             
             // Clear Token Cache
             ListTile(
               leading: const Icon(Icons.refresh),
-              title: const Text('Refresh Token List'),
-              subtitle: const Text('Re-download token list from 1inch'),
+              title: Text(AppI18n.tr(context, 'settings.refresh_tokens')),
+              subtitle: Text(AppI18n.tr(context, 'settings.refresh_tokens.subtitle')),
               trailing: const Icon(Icons.chevron_right),
               onTap: _refreshTokenList,
               contentPadding: EdgeInsets.zero,
@@ -439,8 +497,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Reset All Settings
             ListTile(
               leading: const Icon(Icons.restore, color: Colors.orange),
-              title: const Text('Reset Settings', style: TextStyle(color: Colors.orange)),
-              subtitle: const Text('Reset all settings to default'),
+              title: Text(AppI18n.tr(context, 'settings.reset_settings'), style: const TextStyle(color: Colors.orange)),
+              subtitle: Text(AppI18n.tr(context, 'settings.reset_settings.subtitle')),
               trailing: const Icon(Icons.chevron_right),
               onTap: _resetSettings,
               contentPadding: EdgeInsets.zero,
@@ -466,17 +524,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _copyToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copied to clipboard')),
+      SnackBar(content: Text(AppI18n.tr(context, 'common.copied'))),
     );
   }
 
   Future<void> _showBackupSeed() async {
     dev.log('Request to show backup seed', name: 'settings');
-    final authed = await _authenticateUser(reason: 'Xác thực để xem Seed Phrase');
+    final authed = await _authenticateUser(reason: AppI18n.tr(context, 'auth.reason.view_seed'));
     if (!authed) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Xác thực thất bại')),
+          SnackBar(content: Text(AppI18n.tr(context, 'auth.failed'))),
         );
       }
       return;
@@ -488,16 +546,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!mounted) return;
         await showDialog(
           context: context,
-          builder: (context) => const AlertDialog(
-            title: Text('Backup Seed Phrase'),
-            content: Text('Không tìm thấy seed phrase. Ví có thể đã được nhập bằng private key hoặc bạn chưa lưu seed phrase.'),
+          builder: (context) => AlertDialog(
+            title: Text(AppI18n.tr(context, 'seed.backup.title')),
+            content: Text(AppI18n.tr(context, 'seed.not_found')),
           ),
         );
         return;
       }
 
       await _showSensitiveDialog(
-        title: 'Backup Seed Phrase',
+        title: AppI18n.tr(context, 'seed.backup.title'),
         value: mnemonic,
         isSeed: true,
       );
@@ -505,7 +563,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       dev.log('Failed to get mnemonic: $e', name: 'settings');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể lấy seed phrase')),
+          SnackBar(content: Text(AppI18n.tr(context, 'seed.fetch_failed'))),
         );
       }
     }
@@ -517,17 +575,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!wallet.isInitialized) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Wallet chưa khởi tạo')),
+          SnackBar(content: Text(AppI18n.tr(context, 'wallet.not_initialized'))),
         );
       }
       return;
     }
 
-    final authed = await _authenticateUser(reason: 'Xác thực để xuất Private Key');
+    final authed = await _authenticateUser(reason: AppI18n.tr(context, 'auth.reason.export_pk'));
     if (!authed) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Xác thực thất bại')),
+          SnackBar(content: Text(AppI18n.tr(context, 'auth.failed'))),
         );
       }
       return;
@@ -539,7 +597,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
       final pk = await wallet.exportPrivateKey();
       await _showSensitiveDialog(
-        title: 'Private Key',
+        title: AppI18n.tr(context, 'private_key.title'),
         value: pk,
         isSeed: false,
       );
@@ -547,7 +605,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       dev.log('Failed to export private key: $e', name: 'settings');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể xuất Private Key')),
+          SnackBar(content: Text(AppI18n.tr(context, 'pk.export_failed'))),
         );
       }
     }
@@ -561,7 +619,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!mounted) return;
         final authed = await AuthGuard.requireAuth(
           context,
-          reason: 'Xác thực để thay đổi PIN',
+          reason: AppI18n.tr(context, 'auth.reason.change_pin'),
         );
         if (!authed) return;
       }
@@ -571,7 +629,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (ctx) => PinSetupScreen(
-            title: 'Đặt PIN mới',
+            title: AppI18n.tr(context, 'pin.new_title'),
             showSkip: false,
             onBack: () => Navigator.pop(ctx),
             onSkip: () {},
@@ -581,13 +639,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (!mounted) return;
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cập nhật PIN thành công')),
+                  SnackBar(content: Text(AppI18n.tr(context, 'pin.update_success'))),
                 );
               } catch (e) {
                 dev.log('Store new PIN error: $e', name: 'settings');
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Không thể cập nhật PIN')),
+                  SnackBar(content: Text(AppI18n.tr(context, 'pin.update_failed'))),
                 );
               }
             },
@@ -598,7 +656,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       dev.log('Change PIN error: $e', name: 'settings');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không thể cập nhật PIN')),
+        SnackBar(content: Text(AppI18n.tr(context, 'pin.update_failed'))),
       );
     }
   }
@@ -610,7 +668,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!available) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Thiết bị không hỗ trợ hoặc chưa đăng ký sinh trắc học')),
+            SnackBar(content: Text(AppI18n.tr(context, 'biometric.not_available'))),
           );
           setState(() {});
           return;
@@ -621,7 +679,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!hasPin) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Vui lòng đặt PIN trước khi bật sinh trắc học')),
+            SnackBar(content: Text(AppI18n.tr(context, 'biometric.require_pin_first'))),
           );
           await _changePIN();
           final recheck = await SecureStorage.hasPinSet();
@@ -633,12 +691,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         // Xác thực sinh trắc học để bật
         final didAuth = await AuthGuard.authenticateBiometricOnly(
-          reason: 'Xác thực để bật mở khóa sinh trắc học',
+          reason: AppI18n.tr(context, 'biometric.enable.reason'),
         );
         if (!didAuth) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Xác thực sinh trắc học thất bại')),
+            SnackBar(content: Text(AppI18n.tr(context, 'biometric.failed'))),
           );
           setState(() {});
           return;
@@ -648,15 +706,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!mounted) return;
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã bật mở khóa sinh trắc học')),
+          SnackBar(content: Text(AppI18n.tr(context, 'biometric.enabled'))),
         );
       } else {
         // Yêu cầu xác thực trước khi tắt
-        final ok = await _authenticateUser(reason: 'Xác thực để tắt mở khóa sinh trắc học');
+        final ok = await _authenticateUser(reason: AppI18n.tr(context, 'biometric.disable.reason'));
         if (!ok) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Xác thực thất bại')),
+            SnackBar(content: Text(AppI18n.tr(context, 'auth.failed'))),
           );
           setState(() {});
           return;
@@ -665,14 +723,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!mounted) return;
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã tắt mở khóa sinh trắc học')),
+          SnackBar(content: Text(AppI18n.tr(context, 'biometric.disabled'))),
         );
       }
     } catch (e) {
       dev.log('Toggle biometric error: $e', name: 'settings');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không thể thay đổi cài đặt sinh trắc học')),
+        SnackBar(content: Text(AppI18n.tr(context, 'biometric.change_failed'))),
       );
       setState(() {});
     }
@@ -682,7 +740,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Select Network'),
+        title: Text(AppI18n.tr(context, 'settings.select_network')),
         children: [
           SimpleDialogOption(
             onPressed: () {
@@ -711,18 +769,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Custom RPC URL'),
+        title: Text(AppI18n.tr(context, 'settings.custom_rpc')),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'RPC URL',
+          decoration: InputDecoration(
+            labelText: AppI18n.tr(context, 'settings.custom_rpc'),
             hintText: 'https://...',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppI18n.tr(context, 'common.cancel')),
           ),
           TextButton(
             onPressed: () async {
@@ -732,7 +790,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (!mounted) return;
               setState(() {});
             },
-            child: const Text('Save'),
+            child: Text(AppI18n.tr(context, 'common.save')),
           ),
         ],
       ),
@@ -745,12 +803,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Slippage Tolerance'),
+        title: Text(AppI18n.tr(context, 'settings.slippage')),
         content: TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Slippage (%)',
+          decoration: InputDecoration(
+            labelText: AppI18n.tr(context, 'settings.slippage'),
             hintText: '0.1 - 1.0',
             suffixText: '%',
           ),
@@ -758,7 +816,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppI18n.tr(context, 'common.cancel')),
           ),
           TextButton(
             onPressed: () async {
@@ -770,7 +828,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {});
               }
             },
-            child: const Text('Save'),
+            child: Text(AppI18n.tr(context, 'common.save')),
           ),
         ],
       ),
@@ -783,20 +841,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Transaction Deadline'),
+        title: Text(AppI18n.tr(context, 'settings.deadline')),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Deadline (minutes)',
+          decoration: InputDecoration(
+            labelText: AppI18n.tr(context, 'settings.deadline'),
             hintText: '5 - 60',
-            suffixText: 'min',
+            suffixText: AppI18n.tr(context, 'settings.minutes'),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppI18n.tr(context, 'common.cancel')),
           ),
           TextButton(
             onPressed: () async {
@@ -808,7 +866,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {});
               }
             },
-            child: const Text('Save'),
+            child: Text(AppI18n.tr(context, 'common.save')),
           ),
         ],
       ),
@@ -820,13 +878,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await widget.serviceLocator.tokenRegistry.clearCacheAndRefresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Token list refreshed successfully')),
+        SnackBar(content: Text(AppI18n.tr(context, 'settings.tokens_refreshed'))),
       );
     } catch (e) {
       dev.log('Failed to refresh tokens: $e', name: 'settings');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to refresh tokens: $e')),
+        SnackBar(content: Text('${AppI18n.tr(context, 'settings.tokens_refresh_failed')}: $e')),
       );
     }
   }
@@ -835,16 +893,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Reset Settings'),
-        content: const Text('Are you sure you want to reset all settings to default? This cannot be undone.'),
+        title: Text(AppI18n.tr(context, 'settings.reset_settings.confirm_title')),
+        content: Text(AppI18n.tr(context, 'settings.reset_settings.confirm_text')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(AppI18n.tr(context, 'common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Reset', style: TextStyle(color: Colors.orange)),
+            child: Text(AppI18n.tr(context, 'common.reset'), style: const TextStyle(color: Colors.orange)),
           ),
         ],
       ),
@@ -856,7 +914,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {});
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
-      const SnackBar(content: Text('Settings reset to default')),
+      SnackBar(content: Text(AppI18n.tr(context, 'settings.reset_done'))),
     );
   }
 
@@ -866,11 +924,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final hasPin = await SecureStorage.hasPinSet();
       final bio = await SecureStorage.isBiometricEnabled();
       if (hasPin || bio) {
-        final ok = await _authenticateUser(reason: 'Xác thực để đăng xuất và xóa ví');
+        final ok = await _authenticateUser(reason: AppI18n.tr(context, 'auth.reason.sign_out'));
         if (!ok) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Xác thực thất bại')),
+            SnackBar(content: Text(AppI18n.tr(context, 'auth.failed'))),
           );
           return;
         }
@@ -880,16 +938,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Đăng xuất & Xóa ví'),
-          content: const Text('Hành động này sẽ xóa ví, PIN và thiết lập sinh trắc học khỏi thiết bị này. Bạn có thể khôi phục lại bằng seed phrase đã sao lưu. Tiếp tục?'),
+          title: Text(AppI18n.tr(context, 'settings.sign_out.confirm_title')),
+          content: Text(AppI18n.tr(context, 'settings.sign_out.confirm_text')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Hủy'),
+              child: Text(AppI18n.tr(context, 'settings.sign_out.cancel')),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+              child: Text(AppI18n.tr(context, 'settings.sign_out.ok'), style: const TextStyle(color: Colors.red)),
             ),
           ],
         ),
@@ -906,7 +964,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       // Feedback before switching UI
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã đăng xuất')),
+        SnackBar(content: Text(AppI18n.tr(context, 'settings.sign_out.done'))),
       );
 
       // Notify app to switch to onboarding
@@ -915,7 +973,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       dev.log('Sign out error: $e', name: 'settings');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đăng xuất thất bại')),
+        SnackBar(content: Text(AppI18n.tr(context, 'settings.sign_out.failed'))),
       );
     }
   }

@@ -9,10 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: 1.0.8
   # Existing dependencies
   shared_preferences: 2.2.3
-  intl: 0.19.0
+  intl: ^0.20.2
   fl_chart: 0.68.0
   flutter_svg: 2.0.10+1
   cached_network_image: 3.3.1
@@ -30,6 +32,8 @@ dependencies:
   local_auth: ^2.3.0
   json_annotation: 4.8.1
   freezed_annotation: 2.4.1
+  # WebView for Wert fiat onramp widget
+  webview_flutter: ^4.8.0
 
 dev_dependencies:
   flutter_test:
@@ -44,3 +48,4 @@ flutter:
   assets:
     - assets/logos/
     - .env
+    - assets/wert/

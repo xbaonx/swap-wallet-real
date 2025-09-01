@@ -56,7 +56,7 @@ Map<String, dynamic> _$OneInchQuoteResponseToJson(
 OneInchAllowanceResponse _$OneInchAllowanceResponseFromJson(
         Map<String, dynamic> json) =>
     OneInchAllowanceResponse(
-      allowance: json['allowance'] as String,
+      allowance: json['allowance']?.toString() ?? '0',
     );
 
 Map<String, dynamic> _$OneInchAllowanceResponseToJson(
@@ -83,9 +83,9 @@ OneInchTransactionData _$OneInchTransactionDataFromJson(
       from: json['from'] as String,
       to: json['to'] as String,
       data: json['data'] as String,
-      value: json['value'] as String,
-      gas: json['gas'] as String,
-      gasPrice: json['gasPrice'] as String,
+      value: json['value']?.toString() ?? '0',
+      gas: json['gas']?.toString() ?? '0',
+      gasPrice: json['gasPrice']?.toString() ?? '0',
     );
 
 Map<String, dynamic> _$OneInchTransactionDataToJson(
@@ -105,8 +105,8 @@ OneInchSwapResponse _$OneInchSwapResponseFromJson(Map<String, dynamic> json) =>
       fromToken:
           OneInchToken.fromJson(json['fromToken'] as Map<String, dynamic>),
       toToken: OneInchToken.fromJson(json['toToken'] as Map<String, dynamic>),
-      fromTokenAmount: json['fromTokenAmount'] as String,
-      toTokenAmount: json['toTokenAmount'] as String,
+      fromTokenAmount: json['fromTokenAmount']?.toString() ?? '0',
+      toTokenAmount: json['toTokenAmount']?.toString() ?? '0',
     );
 
 Map<String, dynamic> _$OneInchSwapResponseToJson(
