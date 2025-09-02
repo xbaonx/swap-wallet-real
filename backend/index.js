@@ -85,6 +85,13 @@ if (SENTRY_DSN) {
   app.use(Sentry.Handlers.requestHandler());
 }
 
+// JSON parser MUST be placed early so that POST bodies are available in handlers
+// also capture raw body for HMAC verification
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; }
+}));
+
 // ----- Optional App Auth (JWT or HMAC) -----
 function verifyJwtToken(req) {
   const auth = req.get('authorization') || '';
@@ -313,6 +320,53 @@ app.post('/admin/cron/run', adminAuth, (req, res) => {
   }
 });
 
+// ---- Admin: push test ----
+app.post('/admin/push/test', adminAuth, async (req, res) => {
+  try {
+    const { external_user_id, title, message } = req.body || {};
+    if (!external_user_id) return res.status(400).json({ error: 'missing_external_user_id' });
+    const t = String(title || 'Test');
+    const m = String(message || 'Hello from admin');
+    const result = await sendPushToExternalUser(external_user_id, t, m);
+    const stmt = db.prepare(`
+      INSERT INTO push_campaigns (external_user_id, title, message, result, success, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(String(external_user_id), t, m, JSON.stringify(result), result.ok ? 1 : 0, nowMs());
+    return res.json(result);
+  } catch (e) {
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ---- Admin: push campaigns listing ----
+app.get('/admin/push/campaigns', adminAuth, (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT id, external_user_id, title, message, success, created_at
+      FROM push_campaigns
+      ORDER BY id DESC
+      LIMIT 100
+    `).all();
+    return res.json({ items: rows });
+  } catch (e) {
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
+// ---- Admin: metrics summary ----
+app.get('/admin/metrics/summary', adminAuth, (req, res) => {
+  try {
+    const hist = register.getSingleMetric('http_request_duration_ms');
+    const ctr = register.getSingleMetric('http_requests_total');
+    const histData = hist ? hist.get() : null;
+    const ctrData = ctr ? ctr.get() : null;
+    return res.json({ histogram: histData, counter: ctrData });
+  } catch (e) {
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 // ---- OpenAPI spec ----
 app.get('/openapi.json', (req, res) => {
   const spec = {
@@ -327,14 +381,15 @@ app.get('/openapi.json', (req, res) => {
       '/api/rpc': { post: { summary: 'RPC relay via private gateway' } },
       '/admin/analytics/summary': { get: { summary: 'Admin analytics summary' } },
       '/admin/cron/run': { post: { summary: 'Admin run cleanup job' } },
+      '/admin/push/campaigns': { get: { summary: 'List recent push campaigns' } },
+      '/admin/push/test': { post: { summary: 'Send a test push to an external_user_id' } },
+      '/admin/metrics/summary': { get: { summary: 'Admin metrics summary' } },
     },
   };
   res.json(spec);
 });
 app.disable('x-powered-by');
 app.use(helmet());
-// capture raw body for HMAC verify
-app.use(express.json({ limit: '1mb', verify: (req, res, buf) => { req.rawBody = buf?.toString('utf8') || ''; } }));
 // structured logging
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 app.use(pinoHttp({ logger }));
@@ -370,11 +425,18 @@ const httpRequestCounter = new promClient.Counter({
   name: 'http_requests_total', help: 'Total HTTP requests', labelNames: ['method', 'route', 'status']
 });
 register.registerMetric(httpRequestCounter);
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_ms', help: 'HTTP request duration in ms', labelNames: ['method', 'route', 'status'],
+  buckets: [10, 25, 50, 100, 200, 400, 800, 1600, 3200, 6400]
+});
+register.registerMetric(httpRequestDuration);
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
+    const ms = Date.now() - start;
     try { httpRequestCounter.inc({ method: req.method, route: req.route?.path || req.path, status: String(res.statusCode) }); } catch {}
-    logger.debug({ path: req.path, ms: Date.now() - start }, 'request');
+    try { httpRequestDuration.observe({ method: req.method, route: req.route?.path || req.path, status: String(res.statusCode) }, ms); } catch {}
+    logger.debug({ path: req.path, ms }, 'request');
   });
   next();
 });
@@ -414,6 +476,18 @@ db.exec(`
     wallet_address TEXT,
     external_user_id TEXT,
     platform TEXT,
+    created_at INTEGER
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS push_campaigns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_user_id TEXT,
+    title TEXT,
+    message TEXT,
+    result TEXT,
+    success INTEGER,
     created_at INTEGER
   );
 `);
@@ -534,7 +608,7 @@ function isTokenAllowed(address) {
 
 // OneSignal push helper
 async function sendPushToExternalUser(externalUserId, title, message) {
-  if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return false;
+  if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return { ok: false, error: 'onesignal_not_configured' };
   try {
     const url = 'https://api.onesignal.com/notifications';
     const payload = {
@@ -552,9 +626,9 @@ async function sendPushToExternalUser(externalUserId, title, message) {
       timeout: 10000,
       validateStatus: () => true,
     });
-    return resp.status >= 200 && resp.status < 300;
+    return { ok: resp.status >= 200 && resp.status < 300, status: resp.status, data: resp.data };
   } catch (e) {
-    return false;
+    return { ok: false, error: 'request_failed' };
   }
 }
 

@@ -103,6 +103,50 @@
         </div>
       </div>
     </aside>
+
+    <aside class="card">
+      <h2 style="margin: 0 0 8px; font-size: 18px;">Notifications</h2>
+      <div class="row" style="gap: 8px; align-items: flex-end; flex-wrap: wrap;">
+        <div>
+          <div class="muted" style="margin-bottom:6px;">external_user_id</div>
+          <input id="push-external-id" class="pill" placeholder="0x... hoặc user id" style="background:#0e1520; padding:8px 10px; border:1px solid var(--border); color:var(--text); min-width:220px;" />
+        </div>
+        <div>
+          <div class="muted" style="margin-bottom:6px;">title</div>
+          <input id="push-title" class="pill" placeholder="Tiêu đề" style="background:#0e1520; padding:8px 10px; border:1px solid var(--border); color:var(--text); min-width:180px;" />
+        </div>
+        <div>
+          <div class="muted" style="margin-bottom:6px;">message</div>
+          <input id="push-message" class="pill" placeholder="Nội dung" style="background:#0e1520; padding:8px 10px; border:1px solid var(--border); color:var(--text); min-width:240px;" />
+        </div>
+        <button id="btn-push-test" class="btn btn-success">⏩ Gửi test push</button>
+        <button id="btn-push-refresh" class="btn btn-primary">↻ Refresh campaigns</button>
+      </div>
+      <div id="push-status" class="muted status" style="margin-top:8px;">&nbsp;</div>
+
+      <table class="table" id="campaigns-table" style="margin-top: 10px; display:none;">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>External</th>
+            <th>Title</th>
+            <th>Success</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="campaigns-status" class="muted status" style="margin-top:8px;">&nbsp;</div>
+    </aside>
+
+    <aside class="card">
+      <h2 style="margin: 0 0 8px; font-size: 18px;">Performance</h2>
+      <div id="perf-box" class="status">Đang tải...</div>
+      <div class="row" style="margin-top:8px;">
+        <button id="btn-metrics-refresh" class="btn btn-primary">↻ Refresh metrics</button>
+        <a class="btn" href="/metrics" target="_blank" rel="noopener">📈 Mở /metrics</a>
+      </div>
+    </aside>
+
   </div>
 
   <script>
@@ -199,6 +243,88 @@
       }
     }
 
+    // --- Notifications: test push & campaigns ---
+    async function sendTestPush() {
+      const status = document.getElementById('push-status');
+      status.textContent = 'Đang gửi...';
+      try {
+        const external_user_id = document.getElementById('push-external-id').value.trim();
+        const title = document.getElementById('push-title').value.trim();
+        const message = document.getElementById('push-message').value.trim();
+        const resp = await fetchJson('/admin/push/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ external_user_id, title, message })
+        });
+        status.textContent = 'Kết quả: ' + JSON.stringify(resp);
+        await loadCampaigns();
+      } catch (e) {
+        status.textContent = 'Lỗi: ' + e.message + ' (cần Basic Auth? hoặc cấu hình OneSignal)';
+      }
+    }
+
+    function tsToLocal(ts) {
+      if (!ts) return '-';
+      try { return new Date(Number(ts)).toLocaleString(); } catch { return String(ts); }
+    }
+
+    async function loadCampaigns() {
+      const table = document.getElementById('campaigns-table');
+      const tbody = table.querySelector('tbody');
+      const status = document.getElementById('campaigns-status');
+      tbody.innerHTML = '';
+      status.textContent = 'Đang tải...';
+      table.style.display = 'none';
+      try {
+        const data = await fetchJson('/admin/push/campaigns');
+        const items = (data && data.items) || [];
+        if (items.length === 0) {
+          status.textContent = 'Chưa có campaign nào.';
+          return;
+        }
+        for (const it of items) {
+          const tr = document.createElement('tr');
+          const td1 = document.createElement('td');
+          const td2 = document.createElement('td');
+          const td3 = document.createElement('td');
+          const td4 = document.createElement('td');
+          td1.textContent = tsToLocal(it.created_at);
+          td2.textContent = it.external_user_id;
+          td3.textContent = it.title;
+          td4.innerHTML = it.success ? '<span class="pill" style="color:var(--success)">true</span>' : '<span class="pill" style="color:var(--danger)">false</span>';
+          tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
+          tbody.appendChild(tr);
+        }
+        status.textContent = '';
+        table.style.display = '';
+      } catch (e) {
+        status.textContent = 'Lỗi: ' + e.message + ' (cần Basic Auth?)';
+      }
+    }
+
+    // --- Performance metrics summary ---
+    async function loadMetrics() {
+      const box = document.getElementById('perf-box');
+      box.textContent = 'Đang tải...';
+      try {
+        const m = await fetchJson('/admin/metrics/summary');
+        const ctr = m && m.counter;
+        let totalReq = 0;
+        if (ctr && Array.isArray(ctr.values)) {
+          for (const v of ctr.values) {
+            const val = (typeof v.value === 'number') ? v.value : Number(v.value || 0);
+            if (!Number.isNaN(val)) totalReq += val;
+          }
+        }
+        box.innerHTML = `
+          <div>Tổng số requests: <span class="pill">${totalReq}</span></div>
+          <div>Xem chi tiết tại <a href="/metrics" target="_blank" rel="noopener">/metrics</a></div>
+        `;
+      } catch (e) {
+        box.textContent = 'Lỗi: ' + e.message + ' (cần Basic Auth?)';
+      }
+    }
+
     async function runCron() {
       const status = document.getElementById('cron-status');
       status.textContent = 'Đang chạy...';
@@ -246,9 +372,14 @@
     document.getElementById('btn-refresh').addEventListener('click', loadAnalytics);
     document.getElementById('filter-input').addEventListener('input', applyFilter);
     document.getElementById('btn-cron').addEventListener('click', runCron);
+    document.getElementById('btn-push-test').addEventListener('click', sendTestPush);
+    document.getElementById('btn-push-refresh').addEventListener('click', loadCampaigns);
+    document.getElementById('btn-metrics-refresh').addEventListener('click', loadMetrics);
     loadAnalytics();
     loadHealth();
     loadConfig();
+    loadCampaigns();
+    loadMetrics();
   </script>
 </body>
 </html>
