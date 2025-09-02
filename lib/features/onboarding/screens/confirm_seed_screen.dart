@@ -139,7 +139,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
                 'Please select the correct words to confirm you\'ve backed up your seed phrase',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
               
@@ -229,7 +229,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
             height: 48,
             decoration: BoxDecoration(
               color: selectedWord.isNotEmpty
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
                   : Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
@@ -245,7 +245,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
                 Text(
                   '$position',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 10,
                   ),
                 ),
@@ -256,7 +256,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
                     fontWeight: FontWeight.w600,
                     color: selectedWord.isNotEmpty
                         ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -286,7 +286,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
             decoration: BoxDecoration(
               color: isSelected
                   ? Theme.of(context).colorScheme.surfaceVariant
-                  : Theme.of(context).colorScheme.primary.withOpacity(0.12),
+                  : Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isSelected
@@ -299,7 +299,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: isSelected
-                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                    ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
                     : Theme.of(context).colorScheme.primary,
               ),
             ),

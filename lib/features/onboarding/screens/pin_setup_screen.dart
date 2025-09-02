@@ -140,7 +140,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                             : AppI18n.tr(context, 'onboarding.pin.subtitle.create'),
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                       ),
                       const SizedBox(height: 32),

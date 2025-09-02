@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/i18n.dart';
 
 import '../../../core/format.dart';
 import '../../../domain/models/portfolio.dart';
 import '../../../core/service_locator.dart';
-import '../../portfolio/wert_deposit_screen.dart';
 
 class SummaryHeader extends StatelessWidget {
   final Portfolio portfolio;
@@ -63,15 +64,25 @@ class SummaryHeader extends StatelessWidget {
                   try {
                     final locator = ServiceLocator();
                     final address = await locator.walletService.getAddress();
-                    // Có thể truyền số tiền fiat mặc định nếu muốn, ví dụ 100 USD
-                    final sessionId = await locator.wertService.createSession(walletAddress: address);
-                    if (!context.mounted) return;
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => WertDepositScreen(sessionId: sessionId),
-                        fullscreenDialog: true,
-                      ),
-                    );
+                    // Ưu tiên URL từ backend qua ConfigService, fallback .env
+                    final cfgUrl = locator.configService.transakBuyUrl;
+                    final baseUrl = cfgUrl ?? dotenv.env['TRANSAK_BUY_URL'] ?? dotenv.env['BUY_URL'] ?? 'https://global.transak.com';
+                    Uri uri;
+                    try {
+                      final parsed = Uri.parse(baseUrl);
+                      final qp = Map<String, String>.from(parsed.queryParameters);
+                      // Tự động gắn walletAddress nếu là Transak và chưa có sẵn.
+                      if ((parsed.host.contains('transak') || parsed.toString().contains('transak')) && address.isNotEmpty) {
+                        qp.putIfAbsent('walletAddress', () => address);
+                      }
+                      uri = parsed.replace(queryParameters: qp.isEmpty ? null : qp);
+                    } catch (_) {
+                      uri = Uri.parse('https://global.transak.com');
+                    }
+                    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    if (!ok) {
+                      messenger.showSnackBar(const SnackBar(content: Text('Không thể mở Transak')));
+                    }
                   } catch (e) {
                     messenger.showSnackBar(SnackBar(content: Text('Không thể mở nạp USDT: $e')));
                   }

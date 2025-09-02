@@ -32,8 +32,8 @@ dependencies:
   local_auth: ^2.3.0
   json_annotation: 4.8.1
   freezed_annotation: 2.4.1
-  # WebView for Wert fiat onramp widget
-  webview_flutter: ^4.8.0
+  # Open external Transak link
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
@@ -48,4 +48,3 @@ flutter:
   assets:
     - assets/logos/
     - .env
-    - assets/wert/

@@ -1,18 +1,22 @@
 /*
-  Minimal backend for Wert session creation, suitable for Render.com deployment.
-  - POST /api/wert/create-session -> forwards to Wert Partner API and returns { sessionId }
+  Minimal backend proxy suitable for Render.com deployment.
   - GET  /healthz -> health check
+  - GET  /api/config -> feature flags and external links (e.g., Transak)
+  - GET  /api/oneinch/* -> proxy to 1inch with API key
+  - GET  /api/moralis/* -> proxy to Moralis with API key
+  - POST /api/analytics/track -> record analytics events (SQLite)
+  - POST /api/notify/register -> register device for notifications (OneSignal)
 
   Environment variables (Render):
   - PORT (provided by Render)
   - DB_PATH (e.g. /var/data/app.db)
   - CORS_ORIGINS (comma-separated, optional)
-  - WERT_ENV (sandbox|production)
-  - WERT_PARTNER_ID (required if not sent by client)
-  - WERT_API_KEY (required)
-  - WERT_AUTH_SCHEME (bearer|x-api-key, default: bearer)
-  - WERT_CREATE_SESSION_URL (full URL to Wert Partner create-session endpoint; required)
-  - WERT_REDIRECT_URL (optional, used by client but available here for consistency)
+  - APP_ENV (dev|staging|production)
+  - TRANSAK_BUY_URL (direct external URL for on-ramp)
+  - ONEINCH_API_KEY, ONEINCH_UPSTREAM_BASE
+  - MORALIS_API_KEY, MORALIS_UPSTREAM_BASE
+  - JWT_SECRET or HMAC_SECRET (optional, for write auth)
+  - ONESIGNAL_APP_ID, ONESIGNAL_API_KEY (optional)
 */
 
 require('dotenv').config();
@@ -38,15 +42,13 @@ const Sentry = require('@sentry/node');
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'app.db');
 const CORS_ORIGINS = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-const WERT_ENV = (process.env.WERT_ENV || 'sandbox').toLowerCase();
-const WERT_PARTNER_ID = process.env.WERT_PARTNER_ID || '';
-const WERT_API_KEY = process.env.WERT_API_KEY || '';
-const WERT_AUTH_SCHEME = (process.env.WERT_AUTH_SCHEME || 'bearer').toLowerCase();
-const WERT_CREATE_SESSION_URL = process.env.WERT_CREATE_SESSION_URL || '';
+const APP_ENV = (process.env.APP_ENV || 'production').toLowerCase();
 const ONEINCH_API_KEY = process.env.ONEINCH_API_KEY || '';
 const MORALIS_API_KEY = process.env.MORALIS_API_KEY || '';
 const ONEINCH_UPSTREAM_BASE = process.env.ONEINCH_UPSTREAM_BASE || 'https://api.1inch.dev';
 const MORALIS_UPSTREAM_BASE = process.env.MORALIS_UPSTREAM_BASE || 'https://deep-index.moralis.io/api/v2.2';
+// Onramp (Transak) direct URL for FE to open
+const TRANSAK_BUY_URL = process.env.TRANSAK_BUY_URL || '';
 // Observability / Security / Admin
 const SENTRY_DSN = process.env.SENTRY_DSN || '';
 const JWT_SECRET = process.env.JWT_SECRET || '';
@@ -67,16 +69,7 @@ const PENDING_EXPIRY_HOURS = parseInt(process.env.PENDING_EXPIRY_HOURS || '24', 
 // Notifications (OneSignal)
 const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '';
 const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY || '';
-// Webhook verify
-const WERT_WEBHOOK_SECRET = process.env.WERT_WEBHOOK_SECRET || '';
-
-if (!WERT_CREATE_SESSION_URL) {
-  // We don't throw here to allow healthz, but route will reject without it.
-  console.warn('[config] Missing WERT_CREATE_SESSION_URL');
-}
-if (!WERT_API_KEY) {
-  console.warn('[config] Missing WERT_API_KEY');
-}
+// Webhook verify (none for now)
 if (!ONEINCH_API_KEY) {
   console.warn('[config] Missing ONEINCH_API_KEY (needed for /api/oneinch proxy)');
 }
@@ -141,12 +134,14 @@ app.get('/api/tokens', async (req, res) => {
 app.get('/api/config', (req, res) => {
   try {
     return res.json({
-      env: WERT_ENV,
+      env: APP_ENV,
       features: {
         sse_prices: true,
         rpc_private_gateway: PRIVATE_RPC_URLS.length > 0,
         analytics: true,
         notifications: !!(ONESIGNAL_APP_ID && ONESIGNAL_API_KEY),
+        // Direct buy URL (e.g. Transak) for the app to open externally
+        transak_buy_url: TRANSAK_BUY_URL,
       },
     });
   } catch (e) {
@@ -311,13 +306,8 @@ app.post('/admin/cron/run', adminAuth, (req, res) => {
   try {
     const now = nowMs();
     const cutoff = now - (RETENTION_DAYS * 24 * 60 * 60 * 1000);
-    const pendingCutoff = now - (PENDING_EXPIRY_HOURS * 60 * 60 * 1000);
-
     const del1 = db.prepare(`DELETE FROM analytics_events WHERE created_at < ?`).run(cutoff).changes;
-    const del2 = db.prepare(`DELETE FROM wert_webhooks WHERE created_at < ?`).run(cutoff).changes;
-    const upd = db.prepare(`UPDATE wert_sessions SET status = 'expired', updated_at = ? WHERE status = 'created' AND created_at < ?`).run(now, pendingCutoff).changes;
-
-    return res.json({ ok: true, deleted_analytics: del1, deleted_webhooks: del2, expired_sessions: upd });
+    return res.json({ ok: true, deleted_analytics: del1 });
   } catch (e) {
     return res.status(500).json({ error: 'internal_error' });
   }
@@ -329,10 +319,6 @@ app.get('/openapi.json', (req, res) => {
     openapi: '3.0.0',
     info: { title: 'Swap Wallet Backend', version: '0.1.0' },
     paths: {
-      '/api/wert/create-session': { post: { summary: 'Create Wert session' } },
-      '/api/wert/sessions': { get: { summary: 'List Wert sessions' } },
-      '/api/wert/sessions/{sessionId}': { get: { summary: 'Wert session detail' } },
-      '/api/wert/webhook': { post: { summary: 'Wert webhook' } },
       '/api/tokens': { get: { summary: 'Token registry' } },
       '/api/config': { get: { summary: 'Feature config' } },
       '/api/analytics/track': { post: { summary: 'Track analytics event' } },
@@ -393,6 +379,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// ---- Admin UI (HTML) ----
+app.get('/admin', adminAuth, (req, res) => {
+  try {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+  } catch (e) {
+    res.status(500).send('internal_error');
+  }
+});
+
 // ----- DB init -----
 (function ensureDb() {
   const dir = path.dirname(DB_PATH);
@@ -401,23 +396,6 @@ app.use((req, res, next) => {
 const db = new Database(DB_PATH);
 
 db.pragma('journal_mode = WAL');
-db.exec(`
-  CREATE TABLE IF NOT EXISTS wert_sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT UNIQUE,
-    wallet_address TEXT,
-    env TEXT,
-    commodity TEXT,
-    currency TEXT,
-    currency_amount REAL,
-    network TEXT,
-    status TEXT DEFAULT 'created',
-    meta TEXT,
-    idempotency_key TEXT,
-    created_at INTEGER,
-    updated_at INTEGER
-  );
-`);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS analytics_events (
@@ -440,33 +418,9 @@ db.exec(`
   );
 `);
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS wert_webhooks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT,
-    event_type TEXT,
-    payload TEXT,
-    created_at INTEGER
-  );
-`);
+// Removed: legacy fiat webhooks table
 
-// Migrations
-function columnExists(table, column) {
-  try {
-    const rows = db.prepare(`PRAGMA table_info(${table})`).all();
-    return Array.isArray(rows) && rows.some(r => r.name === column);
-  } catch {
-    return false;
-  }
-}
-if (!columnExists('wert_sessions', 'idempotency_key')) {
-  try {
-    db.exec(`ALTER TABLE wert_sessions ADD COLUMN idempotency_key TEXT`);
-  } catch (e) {
-    console.warn('Migration: add idempotency_key failed (might already exist):', e.message);
-  }
-}
-db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_wert_sessions_idempo ON wert_sessions(idempotency_key)`);
+// Removed: legacy onramp sessions migrations and index
 
 function nowMs() { return Date.now(); }
 
@@ -549,7 +503,7 @@ app.use((req, res, next) => {
 app.get('/healthz', (req, res) => {
   try {
     db.prepare('SELECT 1').get();
-    return res.json({ ok: true, env: WERT_ENV, version: '0.1.0' });
+    return res.json({ ok: true, env: APP_ENV, version: '0.1.0' });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'db_unavailable' });
   }
@@ -565,133 +519,9 @@ app.get('/metrics', async (req, res) => {
   }
 });
 
-app.post('/api/wert/create-session', async (req, res) => {
-  try {
-    if (!WERT_CREATE_SESSION_URL) {
-      return res.status(500).json({ error: 'server_misconfigured', message: 'Missing WERT_CREATE_SESSION_URL' });
-    }
-    if (!WERT_API_KEY) {
-      return res.status(500).json({ error: 'server_misconfigured', message: 'Missing WERT_API_KEY' });
-    }
+// Removed: legacy onramp session creation endpoint
 
-    const {
-      flow_type,
-      wallet_address,
-      currency,
-      commodity,
-      network,
-      currency_amount,
-      // anything else from client is passed through
-    } = req.body || {};
-
-    // Optional idempotency key from body or header
-    const idempotencyKey = req.body?.idempotencyKey || req.get('x-idempotency-key') || null;
-
-    // Minimal validation
-    if (!wallet_address || typeof wallet_address !== 'string' || !wallet_address.startsWith('0x') || wallet_address.length !== 42) {
-      return res.status(400).json({ error: 'invalid_wallet_address' });
-    }
-    if (!currency || !commodity || !network) {
-      return res.status(400).json({ error: 'missing_required_fields' });
-    }
-
-    // If idempotency key provided, return existing session
-    if (idempotencyKey) {
-      const existing = db.prepare('SELECT session_id FROM wert_sessions WHERE idempotency_key = ?').get(idempotencyKey);
-      if (existing?.session_id) {
-        return res.json({ sessionId: existing.session_id });
-      }
-    }
-
-    // Build payload to Wert. Start with client data and ensure partner_id present.
-    const payload = { ...req.body };
-    if (!payload.partner_id && WERT_PARTNER_ID) {
-      payload.partner_id = WERT_PARTNER_ID;
-    }
-
-    // Auth header scheme
-    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-    if (WERT_AUTH_SCHEME === 'bearer') {
-      headers['Authorization'] = `Bearer ${WERT_API_KEY}`;
-    } else if (WERT_AUTH_SCHEME === 'x-api-key') {
-      headers['X-API-KEY'] = WERT_API_KEY;
-    } else {
-      headers['Authorization'] = `Bearer ${WERT_API_KEY}`; // default
-    }
-
-    // Call Wert Partner API
-    const wertResp = await axios.post(WERT_CREATE_SESSION_URL, payload, {
-      headers,
-      timeout: 15000,
-      validateStatus: () => true,
-    });
-
-    if (wertResp.status < 200 || wertResp.status >= 300) {
-      return res.status(502).json({ error: 'wert_upstream_error', status: wertResp.status, body: wertResp.data });
-    }
-
-    const data = wertResp.data || {};
-    const sessionId = data.sessionId || data.session_id || data.id; // try common keys
-    if (!sessionId) {
-      return res.status(502).json({ error: 'invalid_wert_response', data });
-    }
-
-    // Persist session
-    const stmt = db.prepare(`
-      INSERT OR IGNORE INTO wert_sessions (session_id, wallet_address, env, commodity, currency, currency_amount, network, status, meta, idempotency_key, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'created', ?, ?, ?, ?)
-    `);
-    const meta = JSON.stringify({ flow_type });
-    const ts = nowMs();
-    stmt.run(sessionId, wallet_address, WERT_ENV, commodity, currency, currency_amount ?? null, network, meta, idempotencyKey, ts, ts);
-
-    return res.json({ sessionId });
-  } catch (e) {
-    console.error('create-session error', e);
-    return res.status(500).json({ error: 'internal_error' });
-  }
-});
-
-// List Wert sessions by wallet
-app.get('/api/wert/sessions', (req, res) => {
-  try {
-    const wallet = req.query.wallet;
-    if (!wallet || typeof wallet !== 'string' || !wallet.startsWith('0x') || wallet.length !== 42) {
-      return res.status(400).json({ error: 'invalid_wallet_address' });
-    }
-    // pagination: limit (1..100), cursor (created_at ms, return < cursor)
-    let limit = parseInt(String(req.query.limit || '50'), 10);
-    if (!Number.isFinite(limit)) limit = 50;
-    limit = Math.max(1, Math.min(100, limit));
-    const cursor = req.query.cursor ? parseInt(String(req.query.cursor), 10) : null;
-
-    let stmt, params;
-    if (cursor && Number.isFinite(cursor)) {
-      stmt = db.prepare(`
-        SELECT session_id, env, commodity, currency, currency_amount, network, status, meta, created_at, updated_at
-        FROM wert_sessions
-        WHERE wallet_address = ? AND created_at < ?
-        ORDER BY created_at DESC
-        LIMIT ?
-      `);
-      params = [wallet, cursor, limit];
-    } else {
-      stmt = db.prepare(`
-        SELECT session_id, env, commodity, currency, currency_amount, network, status, meta, created_at, updated_at
-        FROM wert_sessions
-        WHERE wallet_address = ?
-        ORDER BY created_at DESC
-        LIMIT ?
-      `);
-      params = [wallet, limit];
-    }
-    const rows = stmt.all(...params);
-    const nextCursor = rows.length > 0 ? rows[rows.length - 1].created_at : null;
-    return res.json({ sessions: rows, nextCursor });
-  } catch (e) {
-    return res.status(500).json({ error: 'internal_error' });
-  }
-});
+// Removed: legacy onramp sessions listing endpoint
 
 // ---- Token allow/deny helpers ----
 function isTokenAllowed(address) {
@@ -734,71 +564,9 @@ function getRandomPrivateRpcUrl() {
   return PRIVATE_RPC_URLS[i];
 }
 
-// Get Wert session details (with latest webhooks)
-app.get('/api/wert/sessions/:sessionId', (req, res) => {
-  try {
-    const sessionId = req.params.sessionId;
-    if (!sessionId || typeof sessionId !== 'string') {
-      return res.status(400).json({ error: 'invalid_session_id' });
-    }
-    const row = db.prepare(`
-      SELECT session_id, env, commodity, currency, currency_amount, network, status, meta, created_at, updated_at, wallet_address
-      FROM wert_sessions WHERE session_id = ?
-    `).get(sessionId);
-    if (!row) return res.status(404).json({ error: 'not_found' });
-    const hooks = db.prepare(`
-      SELECT event_type, payload, created_at
-      FROM wert_webhooks WHERE session_id = ?
-      ORDER BY created_at DESC
-      LIMIT 20
-    `).all(sessionId);
-    return res.json({ session: row, webhooks: hooks });
-  } catch (e) {
-    return res.status(500).json({ error: 'internal_error' });
-  }
-});
+// Removed: legacy onramp session detail endpoint
 
-// Wert webhook receiver
-app.post('/api/wert/webhook', async (req, res) => {
-  try {
-    if (WERT_WEBHOOK_SECRET) {
-      const sig = req.get('x-signature') || req.get('x-wert-signature') || '';
-      const expected = crypto.createHmac('sha256', WERT_WEBHOOK_SECRET).update(req.rawBody || '').digest('hex');
-      if (!sig || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) {
-        return res.status(401).json({ error: 'invalid_signature' });
-      }
-    }
-    const body = req.body || {};
-    const sessionId = body.sessionId || body.session_id || body.session?.id || null;
-    const eventType = body.type || body.event || 'unknown';
-    const status = body.status || body.session?.status || null;
-
-    const insertWh = db.prepare(`
-      INSERT INTO wert_webhooks (session_id, event_type, payload, created_at)
-      VALUES (?, ?, ?, ?)
-    `);
-    insertWh.run(sessionId, eventType, JSON.stringify(body), nowMs());
-
-    if (sessionId && status) {
-      db.prepare(`UPDATE wert_sessions SET status = ?, updated_at = ? WHERE session_id = ?`).run(status, nowMs(), sessionId);
-      if (status.toLowerCase() === 'success' || status.toLowerCase() === 'completed') {
-        try {
-          const row = db.prepare(`SELECT wallet_address FROM wert_sessions WHERE session_id = ?`).get(sessionId);
-          if (row?.wallet_address) {
-            const dev = db.prepare(`SELECT external_user_id FROM devices WHERE wallet_address = ? ORDER BY id DESC LIMIT 1`).get(row.wallet_address);
-            if (dev?.external_user_id) {
-              await sendPushToExternalUser(dev.external_user_id, 'Nạp thành công', `Session ${sessionId} hoàn tất`);
-            }
-          }
-        } catch {}
-      }
-    }
-
-    return res.json({ ok: true });
-  } catch (e) {
-    return res.status(500).json({ error: 'internal_error' });
-  }
-});
+// Removed: legacy onramp webhook endpoint
 
 // ---- 1inch proxy (GET) ----
 app.get('/api/oneinch/*', async (req, res) => {

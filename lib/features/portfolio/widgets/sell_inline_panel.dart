@@ -225,7 +225,7 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
           Text(
             '${AppI18n.tr(context, 'portfolio.sell.fee_info.sell_using_bid')} • ${AppI18n.tr(context, 'portfolio.sell.fee_info.fee')} ${(AppConstants.tradingFee * 100).toStringAsFixed(1)}%',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -237,7 +237,7 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.danger.withOpacity(0.1),
+                color: AppColors.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

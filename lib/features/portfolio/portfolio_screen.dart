@@ -11,7 +11,7 @@ import '../shared/widgets/empty_state.dart';
 import '../overview/widgets/summary_header.dart';
 import '../overview/widgets/metrics_strip.dart';
 import 'widgets/holding_item.dart';
-import 'widgets/wert_sessions_list.dart';
+// Wert history list removed in favor of opening Transak directly
 
 class PortfolioScreen extends StatefulWidget {
   final PrefsStore prefsStore;
@@ -165,8 +165,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             portfolio: _portfolio,
             currentPrices: _currentPrices,
           ),
-          // Wert recent sessions (from backend)
-          const WertSessionsList(maxItems: 5),
+          // Wert recent sessions removed
           Expanded(
             child: holdings.isEmpty
                 ? EmptyState(

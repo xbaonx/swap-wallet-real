@@ -7,7 +7,6 @@ import '../../../core/i18n.dart';
 import '../../../domain/logic/portfolio_engine.dart';
 import '../../../domain/models/coin.dart';
 import '../../../domain/models/portfolio.dart';
-import '../../../domain/models/trade.dart';
 import '../../../storage/prefs_store.dart';
 
 class SwapInlinePanel extends StatefulWidget {
@@ -238,7 +237,7 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
           Text(
             '${AppI18n.tr(context, 'trade.fee_info.buy_using_ask')}, ${AppI18n.tr(context, 'trade.fee_info.sell_using_bid')} • ${AppI18n.tr(context, 'trade.fee')} ${(AppConstants.tradingFee * 100).toStringAsFixed(1)}%',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -250,7 +249,7 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

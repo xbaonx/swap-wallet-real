@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/inch_client.dart';
 import '../services/moralis_client.dart';
-import '../services/wert_service.dart';
+import '../services/config_service.dart';
 import '../onchain/wallet/wallet_service.dart';
 import '../onchain/rpc/rpc_client.dart';
 import '../data/token/token_registry.dart';
@@ -23,7 +23,7 @@ class ServiceLocator {
   late SharedPreferences _prefs;
   late InchClient _inchClient;
   late MoralisClient _moralisClient;
-  late WertService _wertService;
+  late ConfigService _configService;
   late WalletService _walletService;
   late RpcClient _rpcClient;
   late TokenRegistry _tokenRegistry;
@@ -52,7 +52,7 @@ class ServiceLocator {
     // Initialize API clients
     _inchClient = InchClient();
     _moralisClient = MoralisClient();
-    _wertService = WertService();
+    _configService = ConfigService();
 
     // Initialize blockchain services
     _walletService = WalletService();
@@ -91,6 +91,8 @@ class ServiceLocator {
 
     _isInitialized = true;
     developer.log('All services initialized', name: 'locator');
+    // Load runtime config at the end
+    await _configService.refresh();
   }
 
   /// Load wallet if exists and start portfolio sync
@@ -111,7 +113,7 @@ class ServiceLocator {
   SharedPreferences get prefs => _prefs;
   InchClient get inchClient => _inchClient;
   MoralisClient get moralisClient => _moralisClient;
-  WertService get wertService => _wertService;
+  ConfigService get configService => _configService;
   WalletService get walletService => _walletService;
   RpcClient get rpcClient => _rpcClient;
   TokenRegistry get tokenRegistry => _tokenRegistry;
@@ -135,6 +137,7 @@ class ServiceLocator {
     // Initialize with minimal setup for testing
     _inchClient = InchClient();
     _moralisClient = MoralisClient();
+    _configService = ConfigService();
     _walletService = WalletService();
     _rpcClient = RpcClient();
 

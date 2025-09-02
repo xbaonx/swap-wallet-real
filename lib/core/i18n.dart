@@ -278,21 +278,6 @@ class AppI18n {
       // Onboarding - Flow errors
       'onboarding.flow.error.failed': 'Onboarding failed',
       
-      // Wert - Sessions
-      'wert.title': 'Wert top-ups',
-      'wert.refresh': 'Refresh',
-      'wert.view_all': 'View all',
-      'wert.detail.title': 'Wert Session',
-      'wert.detail.session_id': 'Session ID',
-      'wert.detail.status': 'Status',
-      'wert.detail.amount': 'Amount',
-      'wert.detail.network': 'Network',
-      'wert.detail.created_at': 'Created at',
-      'wert.detail.updated_at': 'Updated at',
-      'wert.detail.wallet': 'Wallet',
-      'wert.webhooks.title': 'Recent webhooks',
-      'wert.webhooks.empty': 'No webhooks',
-      'wert.loading': 'Loading...'
     },
     'vi': {
       'app.title': 'BSC Wallet',
@@ -571,21 +556,6 @@ class AppI18n {
       // Onboarding - Flow errors
       'onboarding.flow.error.failed': 'Onboarding thất bại',
       
-      // Wert - Sessions
-      'wert.title': 'Nạp qua Wert',
-      'wert.refresh': 'Làm mới',
-      'wert.view_all': 'Xem tất cả',
-      'wert.detail.title': 'Phiên Wert',
-      'wert.detail.session_id': 'Mã phiên',
-      'wert.detail.status': 'Trạng thái',
-      'wert.detail.amount': 'Số tiền',
-      'wert.detail.network': 'Mạng',
-      'wert.detail.created_at': 'Tạo lúc',
-      'wert.detail.updated_at': 'Cập nhật lúc',
-      'wert.detail.wallet': 'Ví',
-      'wert.webhooks.title': 'Webhook gần đây',
-      'wert.webhooks.empty': 'Chưa có webhook',
-      'wert.loading': 'Đang tải...'
     },
   };
 

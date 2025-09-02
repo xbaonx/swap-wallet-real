@@ -88,14 +88,14 @@ class CoinLogo extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft, end: Alignment.bottomRight,
           colors: [
-            color.withOpacity(0.8),
-            color.withOpacity(0.6),
+            color.withValues(alpha: 0.8),
+            color.withValues(alpha: 0.6),
           ],
         ),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.3)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -110,7 +110,7 @@ class CoinLogo extends StatelessWidget {
           color: Colors.white,
           shadows: [
             Shadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               offset: const Offset(0, 1),
               blurRadius: 2,
             ),

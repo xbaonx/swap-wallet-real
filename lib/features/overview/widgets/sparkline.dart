@@ -103,8 +103,8 @@ class _SparklineWidgetState extends State<SparklineWidget> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  color.withOpacity(0.24),
-                  color.withOpacity(0.0),
+                  color.withValues(alpha: 0.24),
+                  color.withValues(alpha: 0.0),
                 ],
               ),
             ),
@@ -136,7 +136,7 @@ class _SparklineSkeleton extends StatelessWidget {
           child: CircularProgressIndicator(
             strokeWidth: 2,
             valueColor: AlwaysStoppedAnimation<Color>(
-              theme.colorScheme.primary.withOpacity(0.5),
+              theme.colorScheme.primary.withValues(alpha: 0.5),
             ),
           ),
         ),

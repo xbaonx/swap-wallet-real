@@ -111,7 +111,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                           AppI18n.tr(context, 'onboarding.create.subtitle'),
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                         ),
                         const SizedBox(height: 32),
@@ -135,7 +135,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                 Text(
                                   AppI18n.tr(context, 'onboarding.create.tap_to_reveal'),
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                       ),
                                 ),
                                 const SizedBox(height: 16),
@@ -156,7 +156,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                                   Text(
                                     AppI18n.tr(context, 'onboarding.create.generating'),
                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                         ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -192,9 +192,9 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
+                            color: Colors.red.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.red.withOpacity(0.3)),
+                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                           ),
                           child: Row(
                             children: [
@@ -322,7 +322,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
               Text(
                 '${index + 1}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   fontSize: 9,
                 ),
               ),
@@ -417,7 +417,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
               Text(
                 '${index + 1}'.padLeft(2, '0'),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.65),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
               ),

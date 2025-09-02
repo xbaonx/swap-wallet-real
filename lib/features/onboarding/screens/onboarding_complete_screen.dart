@@ -48,8 +48,8 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.green.withOpacity(0.1),
-                  border: Border.all(color: Colors.green.withOpacity(0.3), width: 3),
+                  color: Colors.green.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3), width: 3),
                 ),
                 child: const Icon(
                   Icons.check_circle,
@@ -88,9 +88,9 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.05),
+                  color: Colors.blue.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.blue.withOpacity(0.1)),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
                 ),
                 child: Column(
                   children: [
@@ -138,9 +138,9 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.1),
+                    color: Colors.amber.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -230,7 +230,7 @@ class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
+            color: Colors.blue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(

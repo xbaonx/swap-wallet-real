@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swap Wallet Admin</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #121821;
+      --muted: #8ea0b6;
+      --text: #e6eef8;
+      --primary: #4aa3ff;
+      --danger: #ff6b6b;
+      --success: #2ecc71;
+      --border: #223047;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; 
+      background: var(--bg); color: var(--text);
+    }
+    h1 { margin: 0 0 16px; font-size: 22px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media(min-width: 900px) { .grid { grid-template-columns: 1.5fr 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: #0e1520; color: var(--text); cursor: pointer; }
+    .btn:hover { border-color: #2a3a56; }
+    .btn-primary { background: #0f1b2d; border-color: #1f3352; color: var(--primary); }
+    .btn-danger { background: #231014; border-color: #3a1b21; color: var(--danger); }
+    .btn-success { background: #0f2318; border-color: #1a3a2a; color: var(--success); }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    .table th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    .pill { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); color: var(--muted); }
+    .links a { color: var(--primary); text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+    .status { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header class="row" style="justify-content: space-between; margin-bottom: 16px;">
+    <div>
+      <h1>Swap Wallet Admin</h1>
+      <div class="muted">Yêu cầu Basic Auth (thiết lập BASIC_AUTH_USER/PASS)</div>
+    </div>
+    <div class="row links">
+      <a href="/openapi.json" target="_blank" rel="noopener">OpenAPI</a>
+      <span class="muted">•</span>
+      <a href="/metrics" target="_blank" rel="noopener">Metrics</a>
+      <span class="muted">•</span>
+      <a href="/healthz" target="_blank" rel="noopener">Health</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
+        <h2 style="margin: 0; font-size: 18px;">Analytics Summary</h2>
+        <div class="row">
+          <button id="btn-refresh" class="btn btn-primary">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="analytics-status" class="muted status">Đang tải...</div>
+      <table class="table" id="analytics-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Count</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <aside class="card">
+      <h2 style="margin: 0 0 8px; font-size: 18px;">Maintenance</h2>
+      <p class="muted">Xóa dữ liệu analytics cũ theo RETENTION_DAYS.</p>
+      <div class="row" style="margin-top: 8px;">
+        <button id="btn-cron" class="btn btn-danger">⏱ Chạy cleanup ngay</button>
+      </div>
+      <div id="cron-status" class="muted status" style="margin-top: 8px;">&nbsp;</div>
+    </aside>
+  </div>
+
+  <script>
+    async function fetchJson(url, opts = {}) {
+      const resp = await fetch(url, { headers: { 'Accept': 'application/json' }, ...opts });
+      const ct = resp.headers.get('content-type') || '';
+      let data = null;
+      if (ct.includes('application/json')) {
+        data = await resp.json();
+      } else {
+        data = await resp.text();
+      }
+      if (!resp.ok) {
+        throw new Error(typeof data === 'string' ? data : (data && data.error) || 'request_failed');
+      }
+      return data;
+    }
+
+    async function loadAnalytics() {
+      const status = document.getElementById('analytics-status');
+      const table = document.getElementById('analytics-table');
+      const tbody = table.querySelector('tbody');
+      status.textContent = 'Đang tải...';
+      table.style.display = 'none';
+      tbody.innerHTML = '';
+      try {
+        const data = await fetchJson('/admin/analytics/summary');
+        const rows = (data && data.events) || [];
+        if (rows.length === 0) {
+          status.textContent = 'Không có dữ liệu.';
+          return;
+        }
+        for (const r of rows) {
+          const tr = document.createElement('tr');
+          const td1 = document.createElement('td');
+          const td2 = document.createElement('td');
+          td1.textContent = r.event_name;
+          td2.textContent = r.cnt;
+          tr.appendChild(td1);
+          tr.appendChild(td2);
+          tbody.appendChild(tr);
+        }
+        status.textContent = '';
+        table.style.display = '';
+      } catch (e) {
+        status.textContent = 'Lỗi: ' + e.message + ' (cần Basic Auth?)';
+      }
+    }
+
+    async function runCron() {
+      const status = document.getElementById('cron-status');
+      status.textContent = 'Đang chạy...';
+      try {
+        const data = await fetchJson('/admin/cron/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        status.textContent = 'OK: ' + JSON.stringify(data);
+      } catch (e) {
+        status.textContent = 'Lỗi: ' + e.message + ' (cần Basic Auth?)';
+      }
+    }
+
+    document.getElementById('btn-refresh').addEventListener('click', loadAnalytics);
+    document.getElementById('btn-cron').addEventListener('click', runCron);
+    loadAnalytics();
+  </script>
+</body>
+</html>

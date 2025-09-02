@@ -21,7 +21,7 @@ class TradeHistoryList extends StatelessWidget {
         child: Text(
           'No trade history yet',
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+            color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
           ),
           textAlign: TextAlign.center,
         ),
@@ -34,7 +34,7 @@ class TradeHistoryList extends StatelessWidget {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: theme.dividerColor.withOpacity(0.2),
+          color: theme.dividerColor.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -61,7 +61,7 @@ class TradeHistoryList extends StatelessWidget {
           ),
           Divider(
             height: 1,
-            color: theme.dividerColor.withOpacity(0.2),
+            color: theme.dividerColor.withValues(alpha: 0.2),
           ),
           ListView.separated(
             shrinkWrap: true,
@@ -69,7 +69,7 @@ class TradeHistoryList extends StatelessWidget {
             itemCount: trades.length,
             separatorBuilder: (context, index) => Divider(
               height: 1,
-              color: theme.dividerColor.withOpacity(0.1),
+              color: theme.dividerColor.withValues(alpha: 0.1),
             ),
             itemBuilder: (context, index) {
               final trade = trades[index];
@@ -88,7 +88,7 @@ class TradeHistoryList extends StatelessWidget {
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: (isBuy ? AppColors.success : AppColors.danger)
-                            .withOpacity(0.1),
+                            .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Icon(
@@ -129,7 +129,7 @@ class TradeHistoryList extends StatelessWidget {
                               Text(
                                 '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+                                  color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
                                 ),
                               ),
                               

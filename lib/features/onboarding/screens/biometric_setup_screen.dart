@@ -74,8 +74,8 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.green.withOpacity(0.1),
-                  border: Border.all(color: Colors.green.withOpacity(0.3), width: 2),
+                  color: Colors.green.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3), width: 2),
                 ),
                 child: const Icon(
                   Icons.fingerprint,
@@ -139,9 +139,9 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -238,7 +238,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
