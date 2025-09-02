@@ -5,7 +5,6 @@ import 'package:web3dart/web3dart.dart';
 import 'package:bip39/bip39.dart' as bip39;
 import 'package:bip32/bip32.dart' as bip32;
 import 'package:convert/convert.dart';
-import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import '../../core/errors.dart';
 import '../../core/storage.dart';
@@ -30,7 +29,6 @@ class WalletService implements IWalletService {
   Credentials? _credentials;
   bool _isLocked = true;
 
-  static const int _bscChainId = 56;
   static const String _derivationPath = "m/44'/60'/0'/0/0"; // BSC uses Ethereum derivation
 
   bool get isInitialized => _credentials != null;
@@ -40,7 +38,7 @@ class WalletService implements IWalletService {
   @override
   Future<String> generateMnemonic({int strength = 128}) async {
     if (strength != 128 && strength != 256) {
-      throw AppError(
+      throw const AppError(
         code: AppErrorCode.unknown,
         message: 'Invalid mnemonic strength. Use 128 or 256.',
       );
@@ -232,44 +230,12 @@ class WalletService implements IWalletService {
     return '0x${hex.encode(privateKey)}';
   }
 
-  // Derive private key from seed using BIP44 derivation path
-  Uint8List _derivePrivateKeyFromSeed(Uint8List seed, String path) {
-    // Implement basic BIP44-style derivation
-    // Standard BIP44 path: m/44'/60'/0'/0/0 for Ethereum
-    
-    // For BIP44, we need to derive step by step through the path
-    // Simplified approach: use multiple HMAC rounds to simulate hierarchical derivation
-    var currentKey = seed;
-    
-    // Parse path indices: m/44'/60'/0'/0/0
-    final pathParts = ['44h', '60h', '0h', '0', '0']; // h = hardened
-    
-    for (int i = 0; i < pathParts.length; i++) {
-      final part = pathParts[i];
-      
-      // Create derivation context
-      final context = utf8.encode('bip44_${part}_$i');
-      final hmac = Hmac(sha256, currentKey);
-      final derived = hmac.convert(context);
-      
-      // Use derived bytes as next key
-      currentKey = Uint8List.fromList(derived.bytes);
-    }
-    
-    // Final private key derivation
-    final hmac = Hmac(sha256, currentKey);
-    final finalKey = hmac.convert(utf8.encode('ethereum_private_key'));
-    
-    // Take first 32 bytes for private key
-    final privateKey = Uint8List.fromList(finalKey.bytes.take(32).toList());
-    
-    return privateKey;
-  }
+  // (removed) _derivePrivateKeyFromSeed was unused; using web3dart and bip32/bip39 directly
 
   // Simple encryption/decryption (NOT secure for production)
   String _simpleEncrypt(String data) {
     // In production, use proper encryption like AES
-    final key = 'BSC_WALLET_ENCRYPTION_KEY_V1';
+    const key = 'BSC_WALLET_ENCRYPTION_KEY_V1';
     final keyBytes = utf8.encode(key);
     final dataBytes = utf8.encode(data);
     
@@ -282,7 +248,7 @@ class WalletService implements IWalletService {
   }
 
   String _simpleDecrypt(String encryptedData) {
-    final key = 'BSC_WALLET_ENCRYPTION_KEY_V1';
+    const key = 'BSC_WALLET_ENCRYPTION_KEY_V1';
     final keyBytes = utf8.encode(key);
     final encrypted = base64.decode(encryptedData);
     

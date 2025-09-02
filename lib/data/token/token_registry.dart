@@ -61,8 +61,8 @@ class TokenRegistry {
   final InchClient _inchClient;
   final SharedPreferences _prefs;
   
-  Map<String, TokenInfo> _symbolToToken = {};
-  Map<String, TokenInfo> _addressToToken = {};
+  final Map<String, TokenInfo> _symbolToToken = {};
+  final Map<String, TokenInfo> _addressToToken = {};
   DateTime? _lastRefresh;
   
   static const String _cacheKey = 'token_registry_cache_v1';

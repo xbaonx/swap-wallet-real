@@ -4,6 +4,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/inch_client.dart';
 import '../services/moralis_client.dart';
 import '../services/config_service.dart';
+import '../services/analytics_service.dart';
+import '../services/notification_service.dart';
 import '../onchain/wallet/wallet_service.dart';
 import '../onchain/rpc/rpc_client.dart';
 import '../data/token/token_registry.dart';
@@ -32,6 +34,10 @@ class ServiceLocator {
   late PollingService _pollingService;
   late RankingService _rankingService;
   
+  // App services
+  late AnalyticsService _analyticsService;
+  late NotificationService _notificationService;
+  
   // 1inch adapters (for swap functionality)
   late PricesAdapter _pricesAdapter;
   late PortfolioAdapter _portfolioAdapter;
@@ -53,6 +59,8 @@ class ServiceLocator {
     _inchClient = InchClient();
     _moralisClient = MoralisClient();
     _configService = ConfigService();
+    _analyticsService = AnalyticsService(prefs: _prefs);
+    _notificationService = NotificationService(prefs: _prefs);
 
     // Initialize blockchain services
     _walletService = WalletService();
@@ -93,6 +101,12 @@ class ServiceLocator {
     developer.log('All services initialized', name: 'locator');
     // Load runtime config at the end
     await _configService.refresh();
+    // Fire a basic app start analytics event (non-blocking)
+    try {
+      await _analyticsService.track(eventName: 'app_start', props: {
+        'env': dotenv.env['APP_ENV'] ?? 'production',
+      });
+    } catch (_) {}
   }
 
   /// Load wallet if exists and start portfolio sync
@@ -103,6 +117,12 @@ class ServiceLocator {
         developer.log('Wallet loaded, syncing portfolio once', name: 'locator');
         // Sync once on wallet load, but don't start automatic periodic sync
         _portfolioAdapter.syncWithBlockchain();
+        // Auto register device for notifications and track event
+        try {
+          final addr = await _walletService.getAddress();
+          await _notificationService.registerDevice(walletAddress: addr);
+          await _analyticsService.track(eventName: 'wallet_loaded', walletAddress: addr);
+        } catch (_) {}
       }
     } catch (e) {
       developer.log('No wallet found or load failed: $e', name: 'locator');
@@ -117,6 +137,8 @@ class ServiceLocator {
   WalletService get walletService => _walletService;
   RpcClient get rpcClient => _rpcClient;
   TokenRegistry get tokenRegistry => _tokenRegistry;
+  AnalyticsService get analyticsService => _analyticsService;
+  NotificationService get notificationService => _notificationService;
 
   // Binance services (for charts and indicators)
   PollingService get pollingService => _pollingService;

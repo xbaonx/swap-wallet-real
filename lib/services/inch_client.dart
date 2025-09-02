@@ -3,7 +3,6 @@ import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
 import '../core/http.dart';
 import '../core/errors.dart';
-import '../core/constants.dart';
 import 'models/oneinch_models.dart';
 
 class InchClient {
@@ -25,7 +24,7 @@ class InchClient {
         ) {
     // Allow missing API key if using server-side proxy
     if ((_proxyUrl == null || _proxyUrl!.isEmpty) && _apiKey.isEmpty) {
-      throw AppError(
+      throw const AppError(
         code: AppErrorCode.unknown,
         message: 'ONEINCH_API_KEY is required in .env file (or set ONEINCH_PROXY_URL to use backend proxy)',
       );
@@ -255,7 +254,7 @@ class InchClient {
         throw AppError.networkError('Failed to build swap tx: $err');
       }
       // Normalize tx to a Map<String, dynamic>
-      map['tx'] = Map<String, dynamic>.from(txField as Map);
+      map['tx'] = Map<String, dynamic>.from(txField);
 
       // Some responses omit token info unless explicitly requested. Ensure parser has defaults.
       map['fromToken'] ??= {

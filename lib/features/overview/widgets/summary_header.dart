@@ -118,12 +118,16 @@ class SummaryHeader extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
-                  messenger.showSnackBar(SnackBar(content: Text(AppI18n.tr(context, 'summary.refreshing'))));
+                  // Pre-translate to avoid using BuildContext after await
+                  final refreshingText = AppI18n.tr(context, 'summary.refreshing');
+                  final refreshedText = AppI18n.tr(context, 'summary.refreshed');
+                  final refreshFailedText = AppI18n.tr(context, 'summary.refresh_failed');
+                  messenger.showSnackBar(SnackBar(content: Text(refreshingText)));
                   try {
                     await ServiceLocator().portfolioAdapter.refreshPortfolio();
-                    messenger.showSnackBar(SnackBar(content: Text(AppI18n.tr(context, 'summary.refreshed'))));
+                    messenger.showSnackBar(SnackBar(content: Text(refreshedText)));
                   } catch (e) {
-                    messenger.showSnackBar(SnackBar(content: Text('${AppI18n.tr(context, 'summary.refresh_failed')}: $e')));
+                    messenger.showSnackBar(SnackBar(content: Text('$refreshFailedText: $e')));
                   }
                 },
                 icon: const Icon(Icons.refresh, size: 16),

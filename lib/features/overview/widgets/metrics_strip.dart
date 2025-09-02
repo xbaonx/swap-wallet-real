@@ -52,7 +52,7 @@ class MetricsStrip extends StatelessWidget {
           Expanded(
             child: _MetricItem(
               title: 'Net Return',
-              value: '${AppFormat.formatPercent(netReturn)}',
+              value: AppFormat.formatPercent(netReturn),
               valueColor: netReturn >= 0 ? AppColors.success : AppColors.danger,
               theme: theme,
             ),

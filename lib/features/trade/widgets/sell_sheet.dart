@@ -24,31 +24,6 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-String _errorTextFromAppError(BuildContext ctx, AppError e) {
-  switch (e.code) {
-    case AppErrorCode.walletLocked:
-      return AppI18n.tr(ctx, 'trade.error.wallet_locked');
-    case AppErrorCode.allowanceRequired:
-      return AppI18n.tr(ctx, 'trade.error.allowance_required');
-    case AppErrorCode.insufficientFunds:
-      return AppI18n.tr(ctx, 'trade.error.insufficient_funds');
-    case AppErrorCode.slippageExceeded:
-      return AppI18n.tr(ctx, 'trade.error.slippage_exceeded');
-    case AppErrorCode.networkError:
-      return AppI18n.tr(ctx, 'trade.error.network_error');
-    case AppErrorCode.timeout:
-      return AppI18n.tr(ctx, 'trade.error.timeout');
-    case AppErrorCode.rateLimited:
-      return AppI18n.tr(ctx, 'trade.error.rate_limited');
-    case AppErrorCode.rpcSwitched:
-      return AppI18n.tr(ctx, 'trade.error.rpc_switched');
-    case AppErrorCode.swapFailed:
-    case AppErrorCode.unknown:
-    default:
-      return '${AppI18n.tr(ctx, 'trade.error.swap_failed_prefix')} ${e.message}';
-  }
-}
-
 Future<void> showSellSheet({
   required BuildContext context,
   required String base,
@@ -153,7 +128,7 @@ Future<void> showSellSheet({
                 ValueListenableBuilder<double>(
                   valueListenable: qtyNotifier,
                   builder: (context, qty, child) {
-                    final fee = AppConstants.tradingFee;
+                    const fee = AppConstants.tradingFee;
                     // Tính safe max theo on-chain: trừ 1 wei và floor 6 số thập phân
                     final registry = ServiceLocator().tokenRegistry;
                     final token = registry.getBySymbol(base);
@@ -184,9 +159,24 @@ Future<void> showSellSheet({
                             onPressed: can ? () async {
                               final v = double.tryParse(ctl.text.trim()) ?? 0.0;
                               if (v <= 0) return;
-                              
+
                               dev.log('🔍 SELL DEBUG: Bắt đầu bán $v $base');
                               dev.log('🔍 SELL DEBUG: Số dư $base on-chain trước khi bán: $qtyAvail');
+
+                              // Precompute UI deps before async gaps
+                              final messenger = ScaffoldMessenger.of(ctx);
+                              final i18nProgress = AppI18n.tr(ctx, 'trade.progress.swapping');
+                              final i18nSoldPrefix = AppI18n.tr(ctx, 'trade.snackbar.sold_prefix');
+                              final i18nSwapFailed = AppI18n.tr(ctx, 'trade.snackbar.swap_failed');
+                              final i18nErrorPrefix = AppI18n.tr(ctx, 'trade.error.swap_failed_prefix');
+                              final i18nErrWalletLocked = AppI18n.tr(ctx, 'trade.error.wallet_locked');
+                              final i18nErrAllowanceRequired = AppI18n.tr(ctx, 'trade.error.allowance_required');
+                              final i18nErrInsufficient = AppI18n.tr(ctx, 'trade.error.insufficient_funds');
+                              final i18nErrSlippage = AppI18n.tr(ctx, 'trade.error.slippage_exceeded');
+                              final i18nErrNetwork = AppI18n.tr(ctx, 'trade.error.network_error');
+                              final i18nErrTimeout = AppI18n.tr(ctx, 'trade.error.timeout');
+                              final i18nErrRateLimited = AppI18n.tr(ctx, 'trade.error.rate_limited');
+                              final i18nErrRpcSwitched = AppI18n.tr(ctx, 'trade.error.rpc_switched');
 
                               // Hiển thị dialog tiến trình khi thực hiện swap on-chain
                               showDialog(
@@ -199,7 +189,7 @@ Future<void> showSellSheet({
                                       children: [
                                         const CircularProgressIndicator(),
                                         const SizedBox(width: 16),
-                                        Expanded(child: Text(AppI18n.tr(ctx, 'trade.progress.swapping'))),
+                                        Expanded(child: Text(i18nProgress)),
                                       ],
                                     ),
                                   ),
@@ -223,12 +213,41 @@ Future<void> showSellSheet({
                                 }
                                 String msg;
                                 if (e is AppError) {
-                                  msg = _errorTextFromAppError(ctx, e);
+                                  switch (e.code) {
+                                    case AppErrorCode.walletLocked:
+                                      msg = i18nErrWalletLocked;
+                                      break;
+                                    case AppErrorCode.allowanceRequired:
+                                      msg = i18nErrAllowanceRequired;
+                                      break;
+                                    case AppErrorCode.insufficientFunds:
+                                      msg = i18nErrInsufficient;
+                                      break;
+                                    case AppErrorCode.slippageExceeded:
+                                      msg = i18nErrSlippage;
+                                      break;
+                                    case AppErrorCode.networkError:
+                                      msg = i18nErrNetwork;
+                                      break;
+                                    case AppErrorCode.timeout:
+                                      msg = i18nErrTimeout;
+                                      break;
+                                    case AppErrorCode.rateLimited:
+                                      msg = i18nErrRateLimited;
+                                      break;
+                                    case AppErrorCode.rpcSwitched:
+                                      msg = i18nErrRpcSwitched;
+                                      break;
+                                    case AppErrorCode.swapFailed:
+                                    case AppErrorCode.unknown:
+                                    default:
+                                      msg = '$i18nErrorPrefix ${e.message}';
+                                  }
                                 } else {
-                                  msg = '${AppI18n.tr(ctx, 'trade.error.swap_failed_prefix')} $e';
+                                  msg = '$i18nErrorPrefix $e';
                                 }
                                 if (ctx.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  messenger.showSnackBar(
                                     SnackBar(content: Text(msg)),
                                   );
                                 }
@@ -263,14 +282,14 @@ Future<void> showSellSheet({
 
                                 if (ctx.mounted) {
                                   Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('${AppI18n.tr(ctx, 'trade.snackbar.sold_prefix')} ${v.toStringAsFixed(6)} $base')),
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('$i18nSoldPrefix ${v.toStringAsFixed(6)} $base')),
                                   );
                                 }
                               } else {
                                 if (ctx.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(AppI18n.tr(ctx, 'trade.snackbar.swap_failed'))),
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text(i18nSwapFailed)),
                                   );
                                 }
                                 dev.log('🔍 SELL DEBUG: Bán thất bại!');

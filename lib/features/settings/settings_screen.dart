@@ -42,24 +42,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           SimpleDialogOption(
             onPressed: () async {
+              final nav = Navigator.of(context);
               await widget.prefsStore.setLanguage('system');
-              if (mounted) Navigator.pop(context);
+              if (!mounted) return;
+              nav.pop();
               setState(() {});
             },
             child: Text(AppI18n.tr(context, 'settings.language.system')),
           ),
           SimpleDialogOption(
             onPressed: () async {
+              final nav = Navigator.of(context);
               await widget.prefsStore.setLanguage('en');
-              if (mounted) Navigator.pop(context);
+              if (!mounted) return;
+              nav.pop();
               setState(() {});
             },
             child: Text(AppI18n.tr(context, 'settings.language.en')),
           ),
           SimpleDialogOption(
             onPressed: () async {
+              final nav = Navigator.of(context);
               await widget.prefsStore.setLanguage('vi');
-              if (mounted) Navigator.pop(context);
+              if (!mounted) return;
+              nav.pop();
               setState(() {});
             },
             child: Text(AppI18n.tr(context, 'settings.language.vi')),
@@ -530,12 +536,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _showBackupSeed() async {
     dev.log('Request to show backup seed', name: 'settings');
+    final messenger = ScaffoldMessenger.of(context);
+    // Precompute i18n before async
+    final i18nAuthFailed = AppI18n.tr(context, 'auth.failed');
+    final i18nSeedNotFound = AppI18n.tr(context, 'seed.not_found');
+    final i18nSeedBackupTitle = AppI18n.tr(context, 'seed.backup.title');
+    final i18nSeedFetchFailed = AppI18n.tr(context, 'seed.fetch_failed');
+
     final authed = await _authenticateUser(reason: AppI18n.tr(context, 'auth.reason.view_seed'));
     if (!authed) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppI18n.tr(context, 'auth.failed'))),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(i18nAuthFailed)));
       }
       return;
     }
@@ -547,24 +558,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(AppI18n.tr(context, 'seed.backup.title')),
-            content: Text(AppI18n.tr(context, 'seed.not_found')),
+            title: Text(i18nSeedBackupTitle),
+            content: Text(i18nSeedNotFound),
           ),
         );
         return;
       }
 
       await _showSensitiveDialog(
-        title: AppI18n.tr(context, 'seed.backup.title'),
+        title: i18nSeedBackupTitle,
         value: mnemonic,
         isSeed: true,
       );
     } catch (e) {
       dev.log('Failed to get mnemonic: $e', name: 'settings');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppI18n.tr(context, 'seed.fetch_failed'))),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(i18nSeedFetchFailed)));
       }
     }
   }
@@ -572,11 +581,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _exportPrivateKey() async {
     dev.log('Request to export private key', name: 'settings');
     final wallet = widget.serviceLocator.walletService;
+    final messenger = ScaffoldMessenger.of(context);
+    // Precompute i18n before async
+    final i18nWalletNotInitialized = AppI18n.tr(context, 'wallet.not_initialized');
+    final i18nAuthFailed = AppI18n.tr(context, 'auth.failed');
+    final i18nPkExportFailed = AppI18n.tr(context, 'pk.export_failed');
+    final i18nPkTitle = AppI18n.tr(context, 'private_key.title');
     if (!wallet.isInitialized) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppI18n.tr(context, 'wallet.not_initialized'))),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(i18nWalletNotInitialized)));
       }
       return;
     }
@@ -584,9 +597,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final authed = await _authenticateUser(reason: AppI18n.tr(context, 'auth.reason.export_pk'));
     if (!authed) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppI18n.tr(context, 'auth.failed'))),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(i18nAuthFailed)));
       }
       return;
     }
@@ -596,17 +607,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await wallet.unlock();
       }
       final pk = await wallet.exportPrivateKey();
+      if (!mounted) return;
       await _showSensitiveDialog(
-        title: AppI18n.tr(context, 'private_key.title'),
+        title: i18nPkTitle,
         value: pk,
         isSeed: false,
       );
     } catch (e) {
       dev.log('Failed to export private key: $e', name: 'settings');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppI18n.tr(context, 'pk.export_failed'))),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(i18nPkExportFailed)));
       }
     }
   }
@@ -629,23 +639,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (ctx) => PinSetupScreen(
-            title: AppI18n.tr(context, 'pin.new_title'),
+            title: AppI18n.tr(ctx, 'pin.new_title'),
             showSkip: false,
             onBack: () => Navigator.pop(ctx),
             onSkip: () {},
             onPinSet: (pin) async {
               try {
                 await SecureStorage.storePinHash(pin);
-                if (!mounted) return;
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppI18n.tr(context, 'pin.update_success'))),
+                if (!ctx.mounted) return;
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text(AppI18n.tr(ctx, 'pin.update_success'))),
                 );
               } catch (e) {
                 dev.log('Store new PIN error: $e', name: 'settings');
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppI18n.tr(context, 'pin.update_failed'))),
+                if (!ctx.mounted) return;
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text(AppI18n.tr(ctx, 'pin.update_failed'))),
                 );
               }
             },
@@ -662,14 +672,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _toggleBiometric(bool enabled) async {
+    // Precompute i18n before async and outside try/catch for scope safety
+    final messenger = ScaffoldMessenger.of(context);
+    final i18nBioNotAvail = AppI18n.tr(context, 'biometric.not_available');
+    final i18nRequirePinFirst = AppI18n.tr(context, 'biometric.require_pin_first');
+    final i18nBioFailed = AppI18n.tr(context, 'biometric.failed');
+    final i18nBioEnabled = AppI18n.tr(context, 'biometric.enabled');
+    final i18nBioDisabled = AppI18n.tr(context, 'biometric.disabled');
+    final i18nAuthFailed = AppI18n.tr(context, 'auth.failed');
+    final i18nBioChangeFailed = AppI18n.tr(context, 'biometric.change_failed');
+    final i18nBioEnableReason = AppI18n.tr(context, 'biometric.enable.reason');
+    final i18nBioDisableReason = AppI18n.tr(context, 'biometric.disable.reason');
     try {
       if (enabled) {
         final available = await AuthGuard.isBiometricAvailable();
         if (!available) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppI18n.tr(context, 'biometric.not_available'))),
-          );
+          messenger.showSnackBar(SnackBar(content: Text(i18nBioNotAvail)));
           setState(() {});
           return;
         }
@@ -678,9 +697,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final hasPin = await SecureStorage.hasPinSet();
         if (!hasPin) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppI18n.tr(context, 'biometric.require_pin_first'))),
-          );
+          messenger.showSnackBar(SnackBar(content: Text(i18nRequirePinFirst)));
           await _changePIN();
           final recheck = await SecureStorage.hasPinSet();
           if (!recheck) {
@@ -691,13 +708,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         // Xác thực sinh trắc học để bật
         final didAuth = await AuthGuard.authenticateBiometricOnly(
-          reason: AppI18n.tr(context, 'biometric.enable.reason'),
+          reason: i18nBioEnableReason,
         );
         if (!didAuth) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppI18n.tr(context, 'biometric.failed'))),
-          );
+          messenger.showSnackBar(SnackBar(content: Text(i18nBioFailed)));
           setState(() {});
           return;
         }
@@ -705,33 +720,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await SecureStorage.setBiometricEnabled(true);
         if (!mounted) return;
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppI18n.tr(context, 'biometric.enabled'))),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(i18nBioEnabled)));
       } else {
         // Yêu cầu xác thực trước khi tắt
-        final ok = await _authenticateUser(reason: AppI18n.tr(context, 'biometric.disable.reason'));
+        final ok = await _authenticateUser(reason: i18nBioDisableReason);
         if (!ok) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppI18n.tr(context, 'auth.failed'))),
-          );
+          messenger.showSnackBar(SnackBar(content: Text(i18nAuthFailed)));
           setState(() {});
           return;
         }
         await SecureStorage.setBiometricEnabled(false);
         if (!mounted) return;
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppI18n.tr(context, 'biometric.disabled'))),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(i18nBioDisabled)));
       }
     } catch (e) {
       dev.log('Toggle biometric error: $e', name: 'settings');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppI18n.tr(context, 'biometric.change_failed'))),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(i18nBioChangeFailed)));
       setState(() {});
     }
   }
@@ -875,34 +882,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _refreshTokenList() async {
     try {
+      final messenger = ScaffoldMessenger.of(context);
+      final i18nRefreshed = AppI18n.tr(context, 'settings.tokens_refreshed');
       await widget.serviceLocator.tokenRegistry.clearCacheAndRefresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppI18n.tr(context, 'settings.tokens_refreshed'))),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(i18nRefreshed)));
     } catch (e) {
       dev.log('Failed to refresh tokens: $e', name: 'settings');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${AppI18n.tr(context, 'settings.tokens_refresh_failed')}: $e')),
-      );
+      final messenger = ScaffoldMessenger.of(context);
+      final i18nFailed = AppI18n.tr(context, 'settings.tokens_refresh_failed');
+      messenger.showSnackBar(SnackBar(content: Text('$i18nFailed: $e')));
     }
   }
 
   void _resetSettings() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final i18nConfirmTitle = AppI18n.tr(context, 'settings.reset_settings.confirm_title');
+    final i18nConfirmText = AppI18n.tr(context, 'settings.reset_settings.confirm_text');
+    final i18nCancel = AppI18n.tr(context, 'common.cancel');
+    final i18nReset = AppI18n.tr(context, 'common.reset');
+    final i18nDone = AppI18n.tr(context, 'settings.reset_done');
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(AppI18n.tr(context, 'settings.reset_settings.confirm_title')),
-        content: Text(AppI18n.tr(context, 'settings.reset_settings.confirm_text')),
+        title: Text(i18nConfirmTitle),
+        content: Text(i18nConfirmText),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(AppI18n.tr(context, 'common.cancel')),
+            child: Text(i18nCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(AppI18n.tr(context, 'common.reset'), style: const TextStyle(color: Colors.orange)),
+            child: Text(i18nReset, style: const TextStyle(color: Colors.orange)),
           ),
         ],
       ),
@@ -912,42 +926,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _settingsService.clearAllSettings();
     if (!mounted) return;
     setState(() {});
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      SnackBar(content: Text(AppI18n.tr(context, 'settings.reset_done'))),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(i18nDone)));
   }
 
   Future<void> _signOut() async {
+    final messenger = ScaffoldMessenger.of(context);
+    // Precompute i18n before async and make available to catch
+    final i18nAuthFailed = AppI18n.tr(context, 'auth.failed');
+    final i18nConfirmTitle = AppI18n.tr(context, 'settings.sign_out.confirm_title');
+    final i18nConfirmText = AppI18n.tr(context, 'settings.sign_out.confirm_text');
+    final i18nCancel = AppI18n.tr(context, 'settings.sign_out.cancel');
+    final i18nOk = AppI18n.tr(context, 'settings.sign_out.ok');
+    final i18nDone = AppI18n.tr(context, 'settings.sign_out.done');
+    final i18nFailed = AppI18n.tr(context, 'settings.sign_out.failed');
+    final i18nAuthReasonSignOut = AppI18n.tr(context, 'auth.reason.sign_out');
     try {
       // Require auth only if security is configured
       final hasPin = await SecureStorage.hasPinSet();
       final bio = await SecureStorage.isBiometricEnabled();
       if (hasPin || bio) {
-        final ok = await _authenticateUser(reason: AppI18n.tr(context, 'auth.reason.sign_out'));
+        final ok = await _authenticateUser(reason: i18nAuthReasonSignOut);
         if (!ok) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppI18n.tr(context, 'auth.failed'))),
-          );
+          messenger.showSnackBar(SnackBar(content: Text(i18nAuthFailed)));
           return;
         }
       }
 
       // Confirm destructive action
+      if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text(AppI18n.tr(context, 'settings.sign_out.confirm_title')),
-          content: Text(AppI18n.tr(context, 'settings.sign_out.confirm_text')),
+          title: Text(i18nConfirmTitle),
+          content: Text(i18nConfirmText),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(AppI18n.tr(context, 'settings.sign_out.cancel')),
+              child: Text(i18nCancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(AppI18n.tr(context, 'settings.sign_out.ok'), style: const TextStyle(color: Colors.red)),
+              child: Text(i18nOk, style: const TextStyle(color: Colors.red)),
             ),
           ],
         ),
@@ -963,18 +983,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (!mounted) return;
       // Feedback before switching UI
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppI18n.tr(context, 'settings.sign_out.done'))),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(i18nDone)));
 
       // Notify app to switch to onboarding
       widget.onSignOut();
     } catch (e) {
       dev.log('Sign out error: $e', name: 'settings');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppI18n.tr(context, 'settings.sign_out.failed'))),
-      );
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(SnackBar(content: Text(i18nFailed)));
     }
   }
 

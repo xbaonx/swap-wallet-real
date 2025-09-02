@@ -5,11 +5,10 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: AppColors.brandPrimary,
         secondary: AppColors.brandSecondary,
         surface: AppColors.lightSurface,
-        background: AppColors.lightBg,
         error: AppColors.danger,
       ),
       scaffoldBackgroundColor: AppColors.lightBg,
@@ -38,11 +37,10 @@ class AppTheme {
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: AppColors.brandPrimary,
         secondary: AppColors.brandSecondary,
         surface: AppColors.darkSurface,
-        background: AppColors.darkBg,
         error: AppColors.danger,
       ),
       scaffoldBackgroundColor: AppColors.darkBg,

@@ -89,7 +89,7 @@ class SecureStorage {
 
   static String _hashPin(String pin) {
     // Use SHA-256 with salt for PIN hashing
-    final salt = 'BSC_WALLET_PIN_SALT_V1';
+    const salt = 'BSC_WALLET_PIN_SALT_V1';
     final bytes = utf8.encode(pin + salt);
     final digest = sha256.convert(bytes);
     return digest.toString();
@@ -118,7 +118,7 @@ class SecureStorage {
 
   // Simple XOR-based encryption/decryption (NOT for production)
   static String _simpleEncrypt(String data) {
-    final key = 'BSC_WALLET_ENCRYPTION_KEY_V1';
+    const key = 'BSC_WALLET_ENCRYPTION_KEY_V1';
     final keyBytes = utf8.encode(key);
     final dataBytes = utf8.encode(data);
 
@@ -131,7 +131,7 @@ class SecureStorage {
   }
 
   static String _simpleDecrypt(String encryptedData) {
-    final key = 'BSC_WALLET_ENCRYPTION_KEY_V1';
+    const key = 'BSC_WALLET_ENCRYPTION_KEY_V1';
     final keyBytes = utf8.encode(key);
     final encrypted = base64.decode(encryptedData);
 

@@ -8,9 +8,7 @@ import '../../../core/format.dart';
 import '../../../core/i18n.dart';
 import '../../../domain/logic/portfolio_engine.dart';
 import '../../../domain/models/coin.dart';
-import '../../../domain/models/portfolio.dart';
 import '../../../domain/models/position.dart';
-import '../../../domain/models/trade.dart';
 import '../../../storage/prefs_store.dart';
 
 class SellInlinePanel extends StatefulWidget {
@@ -81,6 +79,11 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
   void _executeSell() async {
     if (!_canExecute) return;
 
+    // Precompute i18n strings to avoid using BuildContext after await
+    final soldText = AppI18n.tr(context, 'portfolio.sell.snackbar.sold');
+    final forText = AppI18n.tr(context, 'portfolio.sell.snackbar.for');
+    final failText = AppI18n.tr(context, 'portfolio.sell.snackbar.fail');
+
     final result = widget.portfolioEngine.sellOrder(widget.coin.base, _inputAmount, widget.coin.bid);
     
     if (result.ok) {
@@ -98,9 +101,10 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
     
     HapticFeedback.lightImpact();
     
+    if (!mounted) return;
     final message = result.ok 
-        ? '${AppI18n.tr(context, 'portfolio.sell.snackbar.sold')} ${AppFormat.formatCoin(result.qty)} ${result.base} ${AppI18n.tr(context, 'portfolio.sell.snackbar.for')} \$${AppFormat.formatUsdt(result.usdt)}'
-        : AppI18n.tr(context, 'portfolio.sell.snackbar.fail');
+        ? '$soldText ${AppFormat.formatCoin(result.qty)} ${result.base} $forText \$${AppFormat.formatUsdt(result.usdt)}'
+        : failText;
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -134,7 +138,7 @@ class _SellInlinePanelState extends State<SellInlinePanel> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.sell,
                 color: AppColors.danger,
                 size: 24,

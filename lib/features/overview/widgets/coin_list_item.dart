@@ -34,8 +34,13 @@ class CoinListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final position = portfolio.positions[coin.base];
-    final hasPosition = position != null && position.qty > 0;
+    final qty = position?.qty ?? 0.0;
+    final hasPosition = qty > 0;
     final unrealizedPnL = portfolioEngine.getUnrealizedPnL(coin.base, coin.last);
+    final denom = qty * (position?.avgEntry ?? 0.0);
+    final pctText = denom > 0
+        ? AppFormat.formatPercent((unrealizedPnL / denom) * 100)
+        : '0%';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -123,20 +128,20 @@ class CoinListItem extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Sở hữu: ${AppFormat.formatCoin(position!.qty)}',
+                            'Sở hữu: ${AppFormat.formatCoin(qty)}',
                             style: theme.textTheme.bodySmall,
                           ),
                         ),
                         Expanded(
                           child: Text(
-                            'Giá trị: \$${AppFormat.formatUsdt(position.qty * coin.last)}',
+                            'Giá trị: \$${AppFormat.formatUsdt(qty * coin.last)}',
                             style: theme.textTheme.bodySmall,
                             textAlign: TextAlign.center,
                           ),
                         ),
                         Expanded(
                           child: Text(
-                            'U-P&L: \$${AppFormat.formatUsdt(unrealizedPnL)} (${AppFormat.formatPercent((unrealizedPnL / (position.qty * position.avgEntry)) * 100)})',
+                            'U-P&L: \$${AppFormat.formatUsdt(unrealizedPnL)} ($pctText)',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: unrealizedPnL >= 0 ? AppColors.success : AppColors.danger,
                             ),

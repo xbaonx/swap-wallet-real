@@ -90,6 +90,13 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
   void _executeSwap() async {
     if (!_canExecute) return;
 
+    // Precompute i18n strings to avoid using BuildContext after awaits
+    final boughtPrefix = AppI18n.tr(context, 'trade.snackbar.bought_prefix');
+    final soldPrefix = AppI18n.tr(context, 'trade.snackbar.sold_prefix');
+    final forText = AppI18n.tr(context, 'trade.snackbar.for');
+    final buyFailed = AppI18n.tr(context, 'trade.snackbar.buy_failed');
+    final sellFailed = AppI18n.tr(context, 'trade.snackbar.sell_failed');
+
     if (_isBuying) {
       final result = widget.portfolioEngine.buyOrder(widget.coin.base, _inputAmount, widget.coin.ask);
       
@@ -107,9 +114,10 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
       
       HapticFeedback.lightImpact();
       
+      if (!mounted) return;
       final message = result.ok 
-          ? '${AppI18n.tr(context, 'trade.snackbar.bought_prefix')} ${result.base} ${AppI18n.tr(context, 'trade.snackbar.for')} ${AppFormat.formatUsdt(result.usdt)} USDT'
-          : AppI18n.tr(context, 'trade.snackbar.buy_failed');
+          ? '$boughtPrefix ${result.base} $forText ${AppFormat.formatUsdt(result.usdt)} USDT'
+          : buyFailed;
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -135,9 +143,10 @@ class _SwapInlinePanelState extends State<SwapInlinePanel> {
       
       HapticFeedback.lightImpact();
       
+      if (!mounted) return;
       final message = result.ok 
-          ? '${AppI18n.tr(context, 'trade.snackbar.sold_prefix')} ${AppFormat.formatCoin(result.qty)} ${result.base}'
-          : AppI18n.tr(context, 'trade.snackbar.sell_failed');
+          ? '$soldPrefix ${AppFormat.formatCoin(result.qty)} ${result.base}'
+          : sellFailed;
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

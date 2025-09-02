@@ -30,7 +30,7 @@ class MoralisClient {
         ) {
     // Cho phép thiếu API key nếu đang dùng proxy server-side
     if ((_proxyUrl == null || _proxyUrl!.isEmpty) && _apiKey.isEmpty) {
-      throw AppError(
+      throw const AppError(
         code: AppErrorCode.unknown,
         message: 'MORALIS_API_KEY is required in .env file (hoặc đặt MORALIS_PROXY_URL để dùng backend proxy)',
       );

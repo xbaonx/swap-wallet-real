@@ -10,18 +10,18 @@ class OfflineBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: AppColors.warning,
-      child: Row(
+      child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.wifi_off,
             color: Colors.white,
             size: 16,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             'Offline - Showing last known prices',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 14,
               fontWeight: FontWeight.w500,

@@ -301,7 +301,7 @@ class _ImportWalletScreenState extends State<ImportWalletScreen> {
                           )
                         : Text(
                             AppI18n.tr(context, 'onboarding.import.button'),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),

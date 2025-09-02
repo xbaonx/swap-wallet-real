@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 /// Tất cả logo có sẵn trong assets/logos/ (tự động từ cryptocurrency-icons repo)
 const Set<String> kLocalLogoKeys = {

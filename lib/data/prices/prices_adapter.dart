@@ -7,21 +7,6 @@ import '../../services/inch_client.dart';
 import '../../data/token/token_registry.dart';
 import '../../data/polling_service.dart';
 
-/// Token info for hardcoded list
-class TokenInfo {
-  final String symbol;
-  final String name;
-  final String address;
-  final int decimals;
-
-  const TokenInfo({
-    required this.symbol,
-    required this.name,
-    required this.address,
-    required this.decimals,
-  });
-}
-
 /// Adapter that replaces PollingService and RankingService
 /// Maintains identical API signatures while using 1inch data
 class PricesAdapter extends PollingService {
@@ -44,13 +29,9 @@ class PricesAdapter extends PollingService {
   bool _isPaused = false;
   bool _isOffline = false;
   List<Coin> _currentCoins = [];
-  List<Coin> _currentTop50 = [];
+  final List<Coin> _currentTop50 = [];
   Set<String> _watchedPositions = <String>{};
 
-
-  // USDT address on BSC
-  static const String _usdtAddress = '0x55d398326f99059ff775485246999027b3197955';
-  static const int _usdtDecimals = 18;
 
   // Polling intervals - increased to avoid rate limits
   static const Duration _priceUpdateInterval = Duration(minutes: 2);
@@ -72,7 +53,9 @@ class PricesAdapter extends PollingService {
   /// Stream of coins (replaces PollingService.coinsStream)
   @override
   Stream<List<Coin>> get coinsStream => _coinsController.stream;
+  @override
   List<Coin> get currentCoins => List.unmodifiable(_currentCoins);
+  @override
   bool get isOffline => _isOffline;
 
   /// Stream of top 50 coins (replaces RankingService.top50Stream)
@@ -80,11 +63,13 @@ class PricesAdapter extends PollingService {
   Stream<List<Coin>> get top50Stream => _rankingController.stream;
   List<Coin> get currentTop50 => List.unmodifiable(_currentTop50);
 
+  @override
   void updateWatchedPositions(Set<String> positionBases) {
     _watchedPositions = positionBases;
     _scheduleUpdate();
   }
 
+  @override
   Future<void> start() async {
     // Service starting
 
@@ -131,7 +116,7 @@ class PricesAdapter extends PollingService {
   Duration _calculateBackoffDelay(int retryCount) {
     final multiplier = pow(2, retryCount).toInt();
     final delayMs = _baseDelay.inMilliseconds * multiplier;
-    final maxDelayMs = 30000; // Max 30 seconds
+    const maxDelayMs = 30000; // Max 30 seconds
     return Duration(milliseconds: min(delayMs, maxDelayMs));
   }
   
@@ -206,16 +191,6 @@ class PricesAdapter extends PollingService {
     throw lastException ?? Exception('All retry attempts failed');
   }
 
-  void _emitFallbackAndMarkOffline() {
-    _isOffline = true;
-    dev.log('🔍 PRICES ADAPTER: Network error, no fallback data - using Binance for prices');
-    // No hardcoded fallback - let Binance handle price display
-    _currentTop50 = [];
-    _currentCoins = [];
-    if (!_rankingController.isClosed) _rankingController.add(_currentTop50);
-    if (!_coinsController.isClosed) _coinsController.add(_currentCoins);
-  }
-
   Future<void> _updateRanking() async {
     if (_isPaused) return;
     
@@ -230,8 +205,8 @@ class PricesAdapter extends PollingService {
     try {
       final updatedCoins = <Coin>[];
       final usdtAddress = _tokenRegistry.getTokenAddress('USDT');
+      if (usdtAddress == null) return;
       final usdtDecimals = _tokenRegistry.getTokenDecimals('USDT');
-      if (usdtAddress == null || usdtDecimals == null) return;
 
       final amount10UsdtWei = (BigInt.from(10) * BigInt.from(10).pow(usdtDecimals)).toString();
 
@@ -350,6 +325,7 @@ class PricesAdapter extends PollingService {
   }
 
   // Original PollingService methods
+  @override
   Future<List<double>> getSparklineData(String symbol) async {
     final now = DateTime.now();
     final cacheKey = symbol;
@@ -386,15 +362,18 @@ class PricesAdapter extends PollingService {
     }
   }
 
+  @override
   Future<void> refreshRanking() async {
     await _updateRanking();
   }
 
+  @override
   void pause() {
     _isPaused = true;
     _pollingTimer?.cancel();
   }
 
+  @override
   void resume() {
     _isPaused = false;
     if (_pollingTimer?.isActive != true) {
@@ -402,6 +381,7 @@ class PricesAdapter extends PollingService {
     }
   }
 
+  @override
   void stop() {
     _pollingTimer?.cancel();
     for (final timer in _debounceTimers.values) {

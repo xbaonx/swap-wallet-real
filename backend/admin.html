@@ -39,6 +39,8 @@
     .links a:hover { text-decoration: underline; }
     .status { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
   </style>
+  <!-- Chart.js for simple bar chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <header class="row" style="justify-content: space-between; margin-bottom: 16px;">
@@ -60,6 +62,7 @@
       <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
         <h2 style="margin: 0; font-size: 18px;">Analytics Summary</h2>
         <div class="row">
+          <input id="filter-input" placeholder="Lọc sự kiện..." class="pill" style="background:#0e1520; padding:8px 10px; border:1px solid var(--border); color:var(--text);" />
           <button id="btn-refresh" class="btn btn-primary">↻ Refresh</button>
         </div>
       </div>
@@ -73,6 +76,9 @@
         </thead>
         <tbody></tbody>
       </table>
+      <div style="margin-top: 12px;">
+        <canvas id="eventsChart" height="140"></canvas>
+      </div>
     </section>
 
     <aside class="card">
@@ -83,9 +89,27 @@
       </div>
       <div id="cron-status" class="muted status" style="margin-top: 8px;">&nbsp;</div>
     </aside>
+
+    <aside class="card">
+      <h2 style="margin: 0 0 8px; font-size: 18px;">System</h2>
+      <div class="row" style="gap: 16px; align-items: flex-start;">
+        <div style="flex:1; min-width: 220px;">
+          <div class="muted" style="margin-bottom:6px;">Health</div>
+          <div id="health-box" class="status">Đang tải...</div>
+        </div>
+        <div style="flex:1; min-width: 220px;">
+          <div class="muted" style="margin-bottom:6px;">Config</div>
+          <div id="config-box" class="status">Đang tải...</div>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <script>
+    // --- Global state ---
+    let chartInstance = null;
+    let allEvents = []; // cache from /admin/analytics/summary
+
     async function fetchJson(url, opts = {}) {
       const resp = await fetch(url, { headers: { 'Accept': 'application/json' }, ...opts });
       const ct = resp.headers.get('content-type') || '';
@@ -101,21 +125,16 @@
       return data;
     }
 
-    async function loadAnalytics() {
+    function renderAnalytics(filteredRows) {
       const status = document.getElementById('analytics-status');
       const table = document.getElementById('analytics-table');
       const tbody = table.querySelector('tbody');
-      status.textContent = 'Đang tải...';
-      table.style.display = 'none';
       tbody.innerHTML = '';
-      try {
-        const data = await fetchJson('/admin/analytics/summary');
-        const rows = (data && data.events) || [];
-        if (rows.length === 0) {
-          status.textContent = 'Không có dữ liệu.';
-          return;
-        }
-        for (const r of rows) {
+      if (!filteredRows || filteredRows.length === 0) {
+        table.style.display = 'none';
+        status.textContent = 'Không có dữ liệu.';
+      } else {
+        for (const r of filteredRows) {
           const tr = document.createElement('tr');
           const td1 = document.createElement('td');
           const td2 = document.createElement('td');
@@ -127,6 +146,54 @@
         }
         status.textContent = '';
         table.style.display = '';
+      }
+
+      // Update bar chart
+      try {
+        const ctx = document.getElementById('eventsChart');
+        const labels = filteredRows.map(r => r.event_name);
+        const values = filteredRows.map(r => r.cnt);
+        const ds = {
+          label: 'Events',
+          data: values,
+          backgroundColor: '#4aa3ff66',
+          borderColor: '#4aa3ff',
+          borderWidth: 1,
+        };
+        const config = {
+          type: 'bar',
+          data: { labels, datasets: [ds] },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: '#8ea0b6' }, grid: { color: '#223047' } },
+              y: { ticks: { color: '#8ea0b6', precision: 0 }, grid: { color: '#223047' }, beginAtZero: true }
+            }
+          }
+        };
+        if (chartInstance) { chartInstance.destroy(); }
+        chartInstance = new Chart(ctx, config);
+      } catch {}
+    }
+
+    function applyFilter() {
+      const q = (document.getElementById('filter-input').value || '').toLowerCase().trim();
+      const rows = !q ? allEvents : allEvents.filter(r => String(r.event_name || '').toLowerCase().includes(q));
+      renderAnalytics(rows);
+    }
+
+    async function loadAnalytics() {
+      const status = document.getElementById('analytics-status');
+      const table = document.getElementById('analytics-table');
+      const tbody = table.querySelector('tbody');
+      status.textContent = 'Đang tải...';
+      table.style.display = 'none';
+      tbody.innerHTML = '';
+      try {
+        const data = await fetchJson('/admin/analytics/summary');
+        allEvents = (data && data.events) || [];
+        applyFilter();
       } catch (e) {
         status.textContent = 'Lỗi: ' + e.message + ' (cần Basic Auth?)';
       }
@@ -143,9 +210,45 @@
       }
     }
 
+    async function loadHealth() {
+      const box = document.getElementById('health-box');
+      try {
+        const h = await fetchJson('/healthz');
+        box.innerHTML = `
+          <div>ok: <span class="pill" style="color:${h.ok ? 'var(--success)' : 'var(--danger)'}">${h.ok}</span></div>
+          <div>env: <span class="pill">${h.env || '-'}</span></div>
+          <div>version: <span class="pill">${h.version || '-'}</span></div>
+        `;
+      } catch (e) {
+        box.textContent = 'Lỗi: ' + e.message;
+      }
+    }
+
+    async function loadConfig() {
+      const box = document.getElementById('config-box');
+      try {
+        const c = await fetchJson('/api/config');
+        const features = c.features || {};
+        const rows = [
+          ['env', c.env || '-'],
+          ['sse_prices', !!features.sse_prices],
+          ['rpc_private_gateway', !!features.rpc_private_gateway],
+          ['analytics', !!features.analytics],
+          ['notifications', !!features.notifications],
+          ['transak_buy_url', features.transak_buy_url ? `<a href="${features.transak_buy_url}" target="_blank" rel="noopener">link</a>` : '-'],
+        ];
+        box.innerHTML = rows.map(([k, v]) => `<div>${k}: <span class="pill">${v}</span></div>`).join('');
+      } catch (e) {
+        box.textContent = 'Lỗi: ' + e.message;
+      }
+    }
+
     document.getElementById('btn-refresh').addEventListener('click', loadAnalytics);
+    document.getElementById('filter-input').addEventListener('input', applyFilter);
     document.getElementById('btn-cron').addEventListener('click', runCron);
     loadAnalytics();
+    loadHealth();
+    loadConfig();
   </script>
 </body>
 </html>

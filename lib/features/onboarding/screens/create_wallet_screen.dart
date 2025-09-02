@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui' show FontFeature;
 import 'dart:developer' as dev;
 import '../../../core/service_locator.dart';
 import '../../../core/i18n.dart';
@@ -34,8 +33,12 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
   }
 
   void _generateSeed() async {
+    // Precompute UI dependencies before async gap
+    final messenger = ScaffoldMessenger.of(context);
+    final i18nErrorPrefix = AppI18n.tr(context, 'onboarding.create.error.seed_generate');
     try {
       final seed = await widget.serviceLocator.walletService.generateMnemonic();
+      if (!mounted) return;
       setState(() {
         _generatedSeed = seed;
       });
@@ -43,8 +46,9 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       final wc = seed.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
       dev.log('Seed generated: $wc words', name: 'onboarding.ui');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${AppI18n.tr(context, 'onboarding.create.error.seed_generate')}: $e')),
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('$i18nErrorPrefix: $e')),
       );
     }
   }
@@ -119,7 +123,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceVariant,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: Theme.of(context).dividerColor),
                           ),
@@ -266,7 +270,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                             ),
                             child: Text(
                               AppI18n.tr(context, 'onboarding.create.continue'),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -299,7 +303,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,

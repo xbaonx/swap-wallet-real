@@ -149,7 +149,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Theme.of(context).dividerColor),
                 ),
@@ -285,7 +285,7 @@ class _ConfirmSeedScreenState extends State<ConfirmSeedScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isSelected
-                  ? Theme.of(context).colorScheme.surfaceVariant
+                  ? Theme.of(context).colorScheme.surfaceContainerHighest
                   : Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(

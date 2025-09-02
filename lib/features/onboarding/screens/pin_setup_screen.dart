@@ -250,7 +250,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Theme.of(context).colorScheme.surfaceVariant,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Center(
@@ -274,7 +274,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         height: 72,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Theme.of(context).colorScheme.surfaceVariant,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Center(

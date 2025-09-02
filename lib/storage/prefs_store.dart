@@ -205,7 +205,7 @@ class PrefsStore {
 
   void _debouncedSavePortfolio(Portfolio portfolio) {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(Duration(milliseconds: _debounceMs), () {
+    _debounceTimer = Timer(const Duration(milliseconds: _debounceMs), () {
       _savePortfolioImmediately(portfolio);
     });
   }

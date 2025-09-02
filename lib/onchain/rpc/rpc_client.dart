@@ -4,7 +4,6 @@ import 'dart:developer' as dev;
 import 'package:web3dart/web3dart.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../../core/http.dart';
 import '../../core/errors.dart';
 
 abstract class IRpcClient {
@@ -24,7 +23,6 @@ class RpcClient implements IRpcClient {
   int _consecutiveFailures = 0;
   
   static const int _maxConsecutiveFailures = 2;
-  static const int _bscChainId = 56;
 
   RpcClient() {
     _initializeClients();
@@ -39,7 +37,6 @@ class RpcClient implements IRpcClient {
   }
 
   Web3Client get _currentClient => _usingFallback ? _fallbackClient : _primaryClient;
-  String get _currentRpcName => _usingFallback ? 'Fallback' : 'Primary';
 
   @override
   Future<BigInt> getBalance(String address) async {

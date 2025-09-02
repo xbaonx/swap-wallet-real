@@ -47,7 +47,7 @@ class PollingService {
     _pollingTimer?.cancel();
     if (!_isPaused) {
       _pollingTimer = Timer.periodic(
-        Duration(seconds: AppConstants.pollingIntervalSeconds),
+        const Duration(seconds: AppConstants.pollingIntervalSeconds),
         (_) => _pollPrices(),
       );
       _pollPrices(); // Initial poll

@@ -26,7 +26,7 @@ class RankingService {
     }
     await _refreshRanking();
     _refreshTimer = Timer.periodic(
-      Duration(minutes: AppConstants.rankingRefreshMinutes),
+      const Duration(minutes: AppConstants.rankingRefreshMinutes),
       (_) => _refreshRanking(),
     );
   }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:developer' as developer;
-import '../../domain/models/portfolio.dart';
 import '../../domain/models/position.dart';
 import '../../domain/logic/portfolio_engine.dart';
 import '../../services/moralis_client.dart';
@@ -18,7 +17,7 @@ class PortfolioAdapter extends PortfolioEngine {
   
   Timer? _refreshTimer;
   bool _isRefreshing = false;
-  static const Duration _refreshInterval = Duration(seconds: 30);
+  
 
   PortfolioAdapter({
     required MoralisClient moralisClient,
@@ -29,11 +28,7 @@ class PortfolioAdapter extends PortfolioEngine {
         _tokenRegistry = tokenRegistry,
         super();
 
-  // Original PortfolioEngine API - EXACT 
-  @override
-  void setPortfolio(Portfolio portfolio) {
-    super.setPortfolio(portfolio);
-  }
+  // Original PortfolioEngine API - use inherited implementation directly
 
   /// Sync with ground truth from Moralis - call this to override local state
   Future<void> syncWithBlockchain({List<String>? chains}) async {
@@ -77,6 +72,12 @@ class PortfolioAdapter extends PortfolioEngine {
           if (tokenBalance.possibleSpam == true) continue;
 
           final symbol = tokenBalance.symbol.toUpperCase();
+          // Canonicalize symbol using TokenRegistry by address when available
+          final canonicalSymbol = _tokenRegistry
+                  .getByAddress(tokenBalance.tokenAddress)
+                  ?.symbol
+                  .toUpperCase() ??
+              symbol;
           final balance = BigInt.parse(tokenBalance.balance).toDouble() /
               BigInt.from(10).pow(tokenBalance.decimals).toDouble();
 
@@ -92,11 +93,11 @@ class PortfolioAdapter extends PortfolioEngine {
             final usdPrice = priceData.usdPrice;
 
             // Aggregate tất cả token (bao gồm stablecoins) như holdings riêng
-            final existing = newPositions[symbol];
+            final existing = newPositions[canonicalSymbol];
             if (existing == null) {
-              newPositions[symbol] = Position(qty: balance, avgEntry: usdPrice);
+              newPositions[canonicalSymbol] = Position(qty: balance, avgEntry: usdPrice);
             } else {
-              newPositions[symbol] = Position(
+              newPositions[canonicalSymbol] = Position(
                 qty: existing.qty + balance,
                 // keep previous avgEntry (giá vốn tạm bằng giá hiện tại lần đầu thấy)
                 avgEntry: existing.avgEntry,
@@ -264,6 +265,7 @@ class PortfolioAdapter extends PortfolioEngine {
     );
   }
 
+  @override
   void addDeposit(double amount) {
     if (amount <= 0) return;
 

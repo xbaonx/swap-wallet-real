@@ -177,7 +177,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                     itemCount: holdings.length,
                     itemBuilder: (context, index) {
                       final entry = holdings[index];
-                      final base = entry.key;
                       final data = entry.value;
                       
                       return HoldingItem(

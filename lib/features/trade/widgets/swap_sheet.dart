@@ -60,13 +60,13 @@ Future<void> showSwapSheet({
   VoidCallback? onRequestSellOnDashboard,
 }) async {
   final ctl = TextEditingController();
-  Timer? _debounce;
-  double _usdtInDebounced = 0.0;
+  Timer? debounce;
+  double usdtInDebounced = 0.0;
 
   // Helpers: resolve symbol to 1inch token, pricing and quoting via 1inch
   final tokenRegistry = ServiceLocator().tokenRegistry;
 
-  TokenInfo? _resolveToken(String symbol) {
+  TokenInfo? resolveToken(String symbol) {
     // Try direct
     final direct = tokenRegistry.getBySymbol(symbol);
     if (direct != null) return direct;
@@ -82,7 +82,7 @@ Future<void> showSwapSheet({
     return null;
   }
 
-  Future<double?> _oneInchPriceUsdtPerToken(TokenInfo token) async {
+  Future<double?> oneInchPriceUsdtPerToken(TokenInfo token) async {
     try {
       final usdt = tokenRegistry.getBySymbol('USDT');
       if (usdt == null) return null;
@@ -102,7 +102,7 @@ Future<void> showSwapSheet({
     }
   }
 
-  Future<double> _oneInchQuoteTokensOut({required double usdtIn, required TokenInfo token}) async {
+  Future<double> oneInchQuoteTokensOut({required double usdtIn, required TokenInfo token}) async {
     try {
       final usdt = tokenRegistry.getBySymbol('USDT');
       if (usdt == null) return 0.0;
@@ -133,21 +133,23 @@ Future<void> showSwapSheet({
         builder: (onchainCtx, snapshot) {
           // Trong khi chưa tải xong số dư on-chain, coi như 0 để tránh bật nút mua sai
           final effectiveUsdt = snapshot.hasData ? (snapshot.data ?? 0.0) : 0.0;
-          final resolved = _resolveToken(base);
+          final resolved = resolveToken(base);
           return DraggableScrollableSheet(
             expand: false,
             initialChildSize: 0.6,
             minChildSize: 0.45,
             maxChildSize: 0.9,
             builder: (ctx, scrollCtl) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  left: 16, right: 16, top: 12,
-                  bottom: 12 + MediaQuery.of(ctx).viewInsets.bottom,
-                ),
-                child: ListView(
-                  controller: scrollCtl,
-                  children: [
+              return StatefulBuilder(
+                builder: (sbCtx, setState) {
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      left: 16, right: 16, top: 12,
+                      bottom: 12 + MediaQuery.of(ctx).viewInsets.bottom,
+                    ),
+                    child: ListView(
+                      controller: scrollCtl,
+                      children: [
                 Center(child: Container(width: 36, height: 4,
                   decoration: BoxDecoration(
                     color: Theme.of(ctx).dividerColor,
@@ -168,7 +170,7 @@ Future<void> showSwapSheet({
                   const Spacer(),
                   // Show 1inch price (USDT per 1 token), fallback to ask from screen
                   FutureBuilder<double?>(
-                    future: resolved != null ? _oneInchPriceUsdtPerToken(resolved) : Future.value(null),
+                    future: resolved != null ? oneInchPriceUsdtPerToken(resolved) : Future.value(null),
                     builder: (_, snap) {
                       final price = (snap.connectionState == ConnectionState.done && snap.data != null)
                           ? snap.data!
@@ -194,13 +196,13 @@ Future<void> showSwapSheet({
                   ),
                   onChanged: (_) {
                     // Rebuild for immediate UI state (button enablement)
-                    (ctx as Element).markNeedsBuild();
+                    setState(() {});
                     // Debounce quotes to avoid spamming 1inch
-                    _debounce?.cancel();
-                    _debounce = Timer(const Duration(milliseconds: 350), () {
+                    debounce?.cancel();
+                    debounce = Timer(const Duration(milliseconds: 350), () {
                       final v = double.tryParse(ctl.text.trim()) ?? 0.0;
-                      _usdtInDebounced = v;
-                      if ((ctx).mounted) (ctx as Element).markNeedsBuild();
+                      usdtInDebounced = v;
+                      if (sbCtx.mounted) setState(() {});
                     });
                   },
                 ),
@@ -214,9 +216,9 @@ Future<void> showSwapSheet({
                         final safeValue = v > effectiveUsdt ? effectiveUsdt : v;
                         ctl.text = safeValue.toStringAsFixed(2);
                         // Trigger debounce immediately for preset buttons
-                        _debounce?.cancel();
-                        _usdtInDebounced = double.tryParse(ctl.text.trim()) ?? 0.0;
-                        (ctx as Element).markNeedsBuild();
+                        debounce?.cancel();
+                        usdtInDebounced = double.tryParse(ctl.text.trim()) ?? 0.0;
+                        setState(() {});
                       },
                       child: Text('$p%'),
                     ),
@@ -224,14 +226,14 @@ Future<void> showSwapSheet({
                 const SizedBox(height: 8),
                 Builder(builder: (_) {
                   final usdtIn = double.tryParse(ctl.text.trim()) ?? 0.0;
-                  final usdtInQuote = _usdtInDebounced;
+                  final usdtInQuote = usdtInDebounced;
                   final can = usdtIn > 0 && effectiveUsdt >= usdtIn - 0.01 && resolved != null;
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (can && usdtInQuote > 0)
                         FutureBuilder<double>(
-                          future: _oneInchQuoteTokensOut(usdtIn: usdtInQuote, token: resolved),
+                          future: oneInchQuoteTokensOut(usdtIn: usdtInQuote, token: resolved),
                           builder: (_, snap) {
                             final est = snap.data ?? 0.0;
                             return Text('${AppI18n.tr(ctx, 'trade.estimate.receive_prefix')} ${est.toStringAsFixed(6)} ${resolved.symbol}',
@@ -245,7 +247,7 @@ Future<void> showSwapSheet({
                           onPressed: can ? () async {
                             final v = double.tryParse(ctl.text.trim()) ?? 0.0;
                             if (v <= 0) return;
-                            _debounce?.cancel();
+                            debounce?.cancel();
                             
                             dev.log('🔍 BUY DEBUG: Bắt đầu mua $base với ${AppFormat.formatUsdt(v)} USDT');
                             dev.log('🔍 BUY DEBUG: Số dư USDT trước khi mua (on-chain): $effectiveUsdt');
@@ -276,31 +278,28 @@ Future<void> showSwapSheet({
                                 toSymbol: resolved.symbol,
                                 amount: v,
                               );
+                              if (!ctx.mounted) return;
                               dev.log('🔍 BUY DEBUG: Swap result ok=${result.ok}, qty=${result.qty}, price=${result.price}, usdt=${result.usdt}');
                             } catch (e) {
                               dev.log('🔍 BUY DEBUG: Swap exception: $e');
+                              if (!ctx.mounted) return;
                               // Đóng dialog tiến trình trước khi báo lỗi
-                              if (ctx.mounted) {
-                                Navigator.of(ctx).pop();
-                              }
+                              Navigator.of(ctx).pop();
                               String msg;
                               if (e is AppError) {
                                 msg = _errorTextFromAppError(ctx, e);
                               } else {
                                 msg = '${AppI18n.tr(ctx, 'trade.error.swap_failed_prefix')} $e';
                               }
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(msg)),
-                                );
-                              }
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text(msg)),
+                              );
                               return; // thoát sớm khi lỗi
                             }
 
                             // Đóng dialog tiến trình
-                            if (ctx.mounted) {
-                              Navigator.of(ctx).pop();
-                            }
+                            if (!ctx.mounted) return;
+                            Navigator.of(ctx).pop();
 
                             if (result.ok) {
                               try {
@@ -320,18 +319,16 @@ Future<void> showSwapSheet({
                               await prefsStore.commitNow(engine.currentPortfolio);
                               dev.log('🔍 BUY DEBUG: Đã commit portfolio');
 
-                              if (ctx.mounted) {
-                                Navigator.pop(ctx); // đóng bottom sheet
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('${AppI18n.tr(ctx, 'trade.snackbar.bought_prefix')} $base ${AppI18n.tr(ctx, 'trade.snackbar.for')} ${AppFormat.formatUsdt(result.usdt)} USDT')),
-                                );
-                              }
+                              if (!ctx.mounted) return;
+                              Navigator.pop(ctx); // đóng bottom sheet
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text('${AppI18n.tr(ctx, 'trade.snackbar.bought_prefix')} $base ${AppI18n.tr(ctx, 'trade.snackbar.for')} ${AppFormat.formatUsdt(result.usdt)} USDT')),
+                              );
                             } else {
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(AppI18n.tr(ctx, 'trade.snackbar.swap_failed'))),
-                                );
-                              }
+                              if (!ctx.mounted) return;
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(content: Text(AppI18n.tr(ctx, 'trade.snackbar.swap_failed'))),
+                              );
                               dev.log('🔍 BUY DEBUG: Mua thất bại!');
                             }
                           } : null,
@@ -350,6 +347,8 @@ Future<void> showSwapSheet({
                   ),
               ],
             ),
+                  );
+                },
               );
             },
           );
@@ -358,6 +357,6 @@ Future<void> showSwapSheet({
     },
   );
   // Clean up any pending debounce timer after sheet closes
-  _debounce?.cancel();
+  debounce?.cancel();
   ctl.dispose();
 }
