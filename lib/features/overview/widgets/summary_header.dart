@@ -61,30 +61,124 @@ class SummaryHeader extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
+                  // Pre-translate texts to avoid using BuildContext after awaits
+                  final invalidAmountText = AppI18n.tr(context, 'deposit.error.invalid_amount');
+                  final openProviderText = AppI18n.tr(context, 'deposit.error.open_provider');
+                  final openFailedPrefix = AppI18n.tr(context, 'deposit.error.open_failed');
                   try {
+                    // Hỏi người dùng số tiền và loại tiền tệ
+                    final amountCtrl = TextEditingController(text: '100');
+                    String currency = 'USD';
+                    final result = await showDialog<Map<String, String>?>(
+                      context: context,
+                      builder: (ctx) {
+                        return AlertDialog(
+                          title: Text(AppI18n.tr(context, 'deposit.title')),
+                          content: StatefulBuilder(
+                            builder: (context, setState) {
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  TextField(
+                                    controller: amountCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: InputDecoration(labelText: AppI18n.tr(context, 'deposit.amount')),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(AppI18n.tr(context, 'deposit.currency')),
+                                  const SizedBox(height: 6),
+                                  ToggleButtons(
+                                    isSelected: [currency == 'USD', currency == 'EUR'],
+                                    onPressed: (index) {
+                                      setState(() {
+                                        currency = index == 0 ? 'USD' : 'EUR';
+                                      });
+                                    },
+                                    children: const [
+                                      Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('USD')),
+                                      Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('EUR')),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(null),
+                              child: Text(AppI18n.tr(context, 'common.cancel')),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop({ 'amount': amountCtrl.text, 'currency': currency }),
+                              child: Text(AppI18n.tr(context, 'deposit.buy')),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    if (result == null) return;
+                    final amount = double.tryParse(result['amount'] ?? '');
+                    final fiatCurrency = (result['currency'] ?? 'USD').toUpperCase();
+
+                    if (amount == null || amount <= 0) {
+                      messenger.showSnackBar(SnackBar(content: Text(invalidAmountText)));
+                      return;
+                    }
+
                     final locator = ServiceLocator();
                     final address = await locator.walletService.getAddress();
-                    // Ưu tiên URL từ backend qua ConfigService, fallback .env
-                    final cfgUrl = locator.configService.transakBuyUrl;
-                    final baseUrl = cfgUrl ?? dotenv.env['TRANSAK_BUY_URL'] ?? dotenv.env['BUY_URL'] ?? 'https://global.transak.com';
+                    // Ưu tiên Ramp (backend/.env), sau đó Transak, cuối cùng BUY_URL
+                    final baseUrl = locator.configService.rampBuyUrl ??
+                        locator.configService.transakBuyUrl ??
+                        dotenv.env['RAMP_BUY_URL'] ??
+                        dotenv.env['TRANSAK_BUY_URL'] ??
+                        dotenv.env['BUY_URL'] ??
+                        'https://app.ramp.network/';
                     Uri uri;
                     try {
                       final parsed = Uri.parse(baseUrl);
                       final qp = Map<String, String>.from(parsed.queryParameters);
-                      // Tự động gắn walletAddress nếu là Transak và chưa có sẵn.
-                      if ((parsed.host.contains('transak') || parsed.toString().contains('transak')) && address.isNotEmpty) {
-                        qp.putIfAbsent('walletAddress', () => address);
+                      final lower = parsed.toString().toLowerCase();
+                      final isTransak = lower.contains('transak');
+                      final isRamp = lower.contains('ramp');
+
+                      if (address.isNotEmpty) {
+                        if (isTransak) {
+                          qp.putIfAbsent('walletAddress', () => address);
+                        } else if (isRamp) {
+                          qp.putIfAbsent('userAddress', () => address);
+                        }
                       }
+
+                      // Prefill USDT và fiat params theo nhà cung cấp
+                      if (isTransak) {
+                        qp.putIfAbsent('cryptoCurrencyCode', () => 'USDT');
+                        qp.putIfAbsent('network', () => 'bsc');
+                        if (fiatCurrency.isNotEmpty) qp['fiatCurrency'] = fiatCurrency;
+                        if (amount > 0) qp['defaultFiatAmount'] = amount.toString();
+                      } else if (isRamp) {
+                        // BSC USDT trên Ramp
+                        qp.putIfAbsent('swapAsset', () => 'BSC_USDT');
+                        if (fiatCurrency.isNotEmpty) qp['fiatCurrency'] = fiatCurrency;
+                        if (amount > 0) qp['fiatValue'] = amount.toString();
+                      } else {
+                        // Tham số chung (nếu provider hỗ trợ)
+                        qp.putIfAbsent('cryptoCurrencyCode', () => 'USDT');
+                        if (fiatCurrency.isNotEmpty) qp['fiatCurrency'] = fiatCurrency;
+                        if (amount > 0) qp['fiatAmount'] = amount.toString();
+                      }
+
                       uri = parsed.replace(queryParameters: qp.isEmpty ? null : qp);
                     } catch (_) {
-                      uri = Uri.parse('https://global.transak.com');
+                      uri = Uri.parse('https://app.ramp.network/');
                     }
                     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
                     if (!ok) {
-                      messenger.showSnackBar(const SnackBar(content: Text('Không thể mở Transak')));
+                      messenger.showSnackBar(SnackBar(content: Text(openProviderText)));
                     }
                   } catch (e) {
-                    messenger.showSnackBar(SnackBar(content: Text('Không thể mở nạp USDT: $e')));
+                    messenger.showSnackBar(SnackBar(content: Text("$openFailedPrefix: $e")));
                   }
                 },
                 icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),

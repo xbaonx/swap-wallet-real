@@ -1,18 +1,14 @@
 import 'dart:developer' as dev;
 import 'dart:io' show Platform;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../core/http.dart';
 
 class NotificationService {
   final HttpClient _httpClient;
-  final SharedPreferences _prefs;
   final String _backendBase;
 
-  NotificationService({
-    required SharedPreferences prefs,
-  })  : _prefs = prefs,
-        _backendBase = dotenv.env['BACKEND_BASE_URL'] ?? '',
+  NotificationService()
+      : _backendBase = dotenv.env['BACKEND_BASE_URL'] ?? '',
         _httpClient = HttpClient(
           defaultHeaders: const {
             'Accept': 'application/json',

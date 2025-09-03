@@ -29,13 +29,13 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
   @override
   void initState() {
     super.initState();
-    _generateSeed();
+    // Delay until after first frame so we can safely access InheritedWidgets
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _generateSeed();
+    });
   }
 
   void _generateSeed() async {
-    // Precompute UI dependencies before async gap
-    final messenger = ScaffoldMessenger.of(context);
-    final i18nErrorPrefix = AppI18n.tr(context, 'onboarding.create.error.seed_generate');
     try {
       final seed = await widget.serviceLocator.walletService.generateMnemonic();
       if (!mounted) return;
@@ -47,9 +47,9 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       dev.log('Seed generated: $wc words', name: 'onboarding.ui');
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('$i18nErrorPrefix: $e')),
-      );
+      final messenger = ScaffoldMessenger.of(context);
+      final i18nErrorPrefix = AppI18n.tr(context, 'onboarding.create.error.seed_generate');
+      messenger.showSnackBar(SnackBar(content: Text('$i18nErrorPrefix: $e')));
     }
   }
 

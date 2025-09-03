@@ -35,6 +35,13 @@ class AppI18n {
       'summary.usd_stable': 'USD (Stable)',
       'summary.coin': 'Coin',
       'summary.deposit_usdt': 'Deposit USDT',
+      // Deposit dialog
+      'deposit.title': 'Buy USDT',
+      'deposit.amount': 'Amount',
+      'deposit.currency': 'Currency',
+      'deposit.buy': 'Buy',
+      'deposit.error.open_provider': 'Unable to open provider',
+      'deposit.error.open_failed': 'Unable to open deposit',
       'summary.refresh': 'Refresh',
       'summary.refreshing': 'Refreshing portfolio…',
       'summary.refreshed': 'Portfolio refreshed',
@@ -367,7 +374,28 @@ class AppI18n {
       'settings.language.vi': 'Tiếng Việt',
       'settings.language.system': 'Theo hệ thống',
       'swap.title': 'Swap',
-      'swap.empty': 'Không tìm thấy coin',
+      
+      // Deposit Dialog
+      'deposit.title': 'Mua USDT',
+      'deposit.subtitle': 'Nạp BNB hoặc token khác vào ví',
+      'deposit.input.amount': 'Số lượng',
+      'deposit.input.address': 'Địa chỉ ví',
+      'deposit.button': 'Nạp tiền',
+      // Keys aligned with dialog usage
+      'deposit.amount': 'Số tiền',
+      'deposit.currency': 'Tiền tệ',
+      'deposit.buy': 'Mua',
+      'deposit.error.open_provider': 'Không thể mở nhà cung cấp',
+      'deposit.error.open_failed': 'Không thể mở nạp USDT',
+      'deposit.error.invalid_amount': 'Số lượng không hợp lệ',
+      'deposit.error.invalid_address': 'Địa chỉ ví không hợp lệ',
+      'deposit.error.network_error': 'Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.',
+      'deposit.error.timeout': 'Hết thời gian chờ. Vui lòng thử lại sau.',
+      'deposit.error.rate_limited': 'Dịch vụ đang bị giới hạn tần suất. Vui lòng thử lại sau ít phút.',
+      'deposit.error.rpc_switched': 'RPC gặp sự cố và đã chuyển endpoint. Vui lòng thử lại.',
+      'deposit.snackbar.deposited': 'Đã nạp tiền thành công',
+      'deposit.snackbar.depositing': 'Đang nạp tiền...',
+      'deposit.snackbar.deposit_failed': 'Nạp tiền thất bại',
       
       // Trade - Common / Sheets / Inline
       'trade.buy': 'Mua',

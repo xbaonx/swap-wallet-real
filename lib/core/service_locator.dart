@@ -60,7 +60,7 @@ class ServiceLocator {
     _moralisClient = MoralisClient();
     _configService = ConfigService();
     _analyticsService = AnalyticsService(prefs: _prefs);
-    _notificationService = NotificationService(prefs: _prefs);
+    _notificationService = NotificationService();
 
     // Initialize blockchain services
     _walletService = WalletService();
